@@ -3,7 +3,7 @@
 def get_transform_filename(wildcards):
     file=[]
     if config['contrast_t1']['present'] and config['noncontrast_t1']['present']:
-        file=expand(bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=config['subject_prefix']+'{subject}',suffix='xfm.txt',from_='noncontrast',to='contrast',desc='rigid',type_='ras'),subject=wildcards.subject),
+        file=expand(bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject='{subject}',suffix='xfm.txt',from_='noncontrast',to='contrast',desc='rigid',type_='ras'),subject=wildcards.subject),
     if len(file) >0:
         file=file[0][0]
     print(file)
@@ -27,7 +27,7 @@ if config['fastsurfer_config']['version'] =='dev':
             t1_fname = join(config['out_dir'],'derivatives','fastsurfer','sub-' + subject_id, 'mri','orig.mgz'),
             segs = join(config['out_dir'],'derivatives','fastsurfer','sub-' + subject_id, 'mri','aparc+aseg.mgz'),
         group: 'preproc'
-        threads: 6
+        threads: 8
         shell:
             "export FASTSURFER_HOME={params.fastsurfer_run} &&PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:4096 {params.fastsurfer_run}/run_fastsurfer.sh \
             --t1 {input.t1} --sd {params.fastsurfer_out} --threads {params.threads} --vox_size {params.vox_size} --sid sub-{params.subjid} --py {params.py} --viewagg_device cpu --fsaparc --parallel --allow_root"
@@ -48,7 +48,7 @@ elif config['fastsurfer_config']['version'] =='stable':
             touch_fastsurfer=touch(join(config['out_dir'], 'logs', 'sub-' + subject_id + "_fastsurfer.done")),
             t1_fname = join(config['out_dir'],'derivatives','fastsurfer','sub-' + subject_id, 'mri','orig.mgz'),
             segs = join(config['out_dir'],'derivatives','fastsurfer','sub-' + subject_id, 'mri','aparc+aseg.mgz'),
-        threads: 6
+        threads: 8
         group: 'preproc'
         shell:
             "export FASTSURFER_HOME={params.fastsurfer_run} &&PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:4096 {params.fastsurfer_run}/run_fastsurfer.sh \
@@ -69,17 +69,18 @@ elif config['fastsurfer_config']['version'] =='master':
             touch_fastsurfer=touch(join(config['out_dir'], 'logs', 'sub-' + subject_id + "_fastsurfer.done")),
             t1_fname = join(config['out_dir'],'derivatives','fastsurfer','sub-' + subject_id, 'mri','orig.mgz'),
             segs = join(config['out_dir'],'derivatives','fastsurfer','sub-' + subject_id, 'mri','aparc+aseg.mgz'),
-        threads: 6
+        threads: 8
         group: 'preproc'
         shell:
             "export FASTSURFER_HOME={params.fastsurfer_run} &&PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:4096 {params.fastsurfer_run}/run_fastsurfer.sh \
             --t1 {input.t1} --sd {params.fastsurfer_out} --sid sub-{params.subjid} --py {params.py} --run_viewagg_on cpu --fsaparc --parallel"
 
-final_outputs.extend(expand(rules.fastsurfer_seg.output.touch_fastsurfer, subject=subjects))
+#final_outputs.extend(expand(rules.fastsurfer_seg.output.touch_fastsurfer, subject=subjects))
 
 rule fastsurfer_symlinks:
     input: 
         t1_fname = join(config['out_dir'],'derivatives','fastsurfer','sub-' + subject_id, 'mri','orig.mgz'),
+        touch_fastsurfer = rules.fastsurfer_seg.output.touch_fastsurfer,
     params:
         talairach_xfm = join(config['out_dir'],'derivatives','fastsurfer','sub-' + subject_id, 'mri','transforms','talairach.xfm.lta'),
         lh_pial_t1 = join(config['out_dir'],'derivatives','fastsurfer','sub-' + subject_id, 'surf','lh.pial.T1'),
@@ -100,7 +101,7 @@ rule fastsurfer_symlinks:
     output:
         touch_fastsurfer=touch(join(config['out_dir'], 'logs', 'sub-' + subject_id + "_fastsurfer_symlinks.done")),
     group: 'preproc'
-    threads: 6
+    threads: 8
     shell:
         "rm {params.talairach_lta} {params.talairach_skull_lta} {params.rawavg} {params.lh_pial} {params.rh_pial} {params.lh_white_h} {params.rh_white_h} {params.lh_white_k} {params.rh_white_k}&&\
         cp {params.talairach_xfm} {params.talairach_lta}&&\
@@ -113,11 +114,12 @@ rule fastsurfer_symlinks:
         cp {params.lh_white_preaparc_k} {params.lh_white_k}&&\
         cp {params.rh_white_preaparc_k} {params.rh_white_k}"
 
-final_outputs.extend(expand(join(config['out_dir'], 'logs', 'sub-' + subject_id + "_fastsurfer_symlinks.done"), subject=subjects))
+#final_outputs.extend(expand(join(config['out_dir'], 'logs', 'sub-' + subject_id + "_fastsurfer_symlinks.done"), subject=subjects))
 
 rule aparcseg_to_nrrd:
     input:
         segs = join(config['out_dir'],'derivatives','fastsurfer','sub-' + subject_id, 'mri','aparc+aseg.mgz'),
+        touch_fastsurfer = rules.fastsurfer_symlinks.output.touch_fastsurfer,
     params:
         atlas_labels = config['fastsurfer_config']['colors'],
         atlas_colors= config['fastsurfer_config']['colors'],
@@ -125,10 +127,9 @@ rule aparcseg_to_nrrd:
     output:
         seg_nrrd = join(config['out_dir'],'derivatives','fastsurfer','sub-' + subject_id, 'mri','aparc+aseg.seg.nrrd')
     group: 'preproc'
-    threads: 6
+    threads: 8
     script: '../scripts/working/niiTonrrd.py'
 
-final_outputs.extend(expand(join(config['out_dir'],'derivatives','fastsurfer','sub-' + subject_id, 'mri','aparc+aseg.seg.nrrd'), subject=subjects))
 
 if config['seeg_contacts']['present']:
     rule vis_electrodes_native:
@@ -136,6 +137,7 @@ if config['seeg_contacts']['present']:
             fcsv = get_electrodes_coords(subject_id,coords_space='native',coords_type='SEEGA'),
             t1_fname = join(config['out_dir'],'derivatives','fastsurfer','sub-' + subject_id, 'mri','orig.mgz'),
             xfm_noncontrast = get_transform_filename,
+            seg_nrrd = rules.aparcseg_to_nrrd.output.seg_nrrd,
         params:
             lh_pial = join(config['out_dir'],'derivatives','fastsurfer','sub-' + subject_id, 'surf','lh.pial'),
             rh_pial = join(config['out_dir'],'derivatives','fastsurfer','sub-' + subject_id, 'surf','rh.pial'),
@@ -147,8 +149,10 @@ if config['seeg_contacts']['present']:
                     category='Electrodes in template space',
                     subcategory='{desc} reg to {template}'),
         group: 'preproc'
-        threads: 6
+        threads: 8
         script: '../scripts/vis_electrodes_native.py'
 
     final_outputs.extend(expand(bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),prefix='sub-'+subject_id+'/qc/sub-'+subject_id,suffix='electrodes.html',space='native',include_subject_dir=False),
                         subject=subjects))
+
+final_outputs.extend(expand(join(config['out_dir'],'derivatives','fastsurfer','sub-' + subject_id, 'mri','aparc+aseg.seg.nrrd'), subject=subjects))

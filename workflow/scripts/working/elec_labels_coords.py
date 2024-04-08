@@ -215,7 +215,9 @@ def determineFCSVCoordSystem(input_fcsv):
 							11:'label', 12:'description', 13:'associatedNodeID'}, inplace=True)
 		
 		df['associatedNodeID']= pd.Series(np.repeat('',df.shape[0]))
-		df.round(3).to_csv(input_fcsv, sep=',', index=False, lineterminator="", mode='a', header=False, float_format='%.3f')
+		df['label']=[x.strip() for x in df['label']]
+
+		df.round(6).to_csv(input_fcsv, sep=',', index=False, lineterminator="", mode='a', header=False, float_format='%.6f')
 		
 		print(f"Converted LPS to RAS: {os.path.dirname(input_fcsv)}/{os.path.basename(input_fcsv)}")
 
@@ -294,7 +296,8 @@ for ifile in patient_files:
 	
 	coords_type=os.path.splitext(os.path.basename(ifile))[0].split('_')[-1]
 	data_table_full['type'] = np.repeat(coords_type, data_table_full.shape[0])
-	
+	data_table_full['label']=[x.strip() for x in data_table_full['label']]
+
 	if coords_type.lower().endswith('seega'):
 		groups,n_members = determine_groups(np.array(data_table_full['label'].values), True)
 		
@@ -330,7 +333,7 @@ for ifile in patient_files:
 		else:
 			head = ['type','label','x_mcp','y_mcp','z_mcp']
 			
-		data_table_full.round(3).to_csv(output_fname, sep='\t', index=False, na_rep='n/a', lineterminator="", columns = head, float_format='%.3f')
+		data_table_full.round(6).to_csv(output_fname, sep='\t', index=False, na_rep='n/a', lineterminator="", columns = head, float_format='%.6f')
 		
 		#### Write MCP Based Coords FCSV file
 		output_fname = make_bids_filename(isub, 'acpc', None, coords_type + '.fcsv', patient_output)
@@ -342,7 +345,7 @@ for ifile in patient_files:
 		head = ['node_id', 'x_mcp', 'y_mcp', 'z_mcp', 'ow', 'ox', 'oy', 'oz', 'vis','sel', 'lock', 'label', 'description', 'associatedNodeID']
 		data_table_full['node_id'] = ['vtkMRMLMarkupsFiducialNode_' + str(x) for x in range(data_table_full.shape[0])]
 		data_table_full['associatedNodeID'] = np.repeat('',data_table_full.shape[0])
-		data_table_full.round(3).to_csv(output_fname, sep=',', index=False, lineterminator="", columns = head, mode='a', header=False, float_format='%.3f')
+		data_table_full.round(6).to_csv(output_fname, sep=',', index=False, lineterminator="", columns = head, mode='a', header=False, float_format='%.6f')
 	
 	#### Write Native Coords TSV file
 	output_fname = make_bids_filename(isub, 'native', None, coords_type + '.tsv', patient_output)
@@ -351,7 +354,7 @@ for ifile in patient_files:
 	else:
 		head=['type','label','x','y','z']
 		
-	data_table_full.round(3).to_csv(output_fname, sep='\t', index=False, na_rep='n/a', lineterminator="", columns = head, float_format='%.3f')
+	data_table_full.round(6).to_csv(output_fname, sep='\t', index=False, na_rep='n/a', lineterminator="", columns = head, float_format='%.6f')
 	
 	#### Write Native Coords FCSV file
 	output_fname = make_bids_filename(isub, 'native', None, coords_type + '.fcsv', patient_output)
@@ -365,7 +368,7 @@ for ifile in patient_files:
 	del data_table_full['associatedNodeID']
 	data_table_full.insert(data_table_full.shape[1],'node_id',pd.Series(['vtkMRMLMarkupsFiducialNode_' + str(x) for x in range(data_table_full.shape[0])]))
 	data_table_full.insert(data_table_full.shape[1],'associatedNodeID', pd.Series(np.repeat('',data_table_full.shape[0])))
-	data_table_full.round(3).to_csv(output_fname, sep=',', index=False, lineterminator="", columns = head, mode='a', header=False, float_format='%.3f')
+	data_table_full.round(6).to_csv(output_fname, sep=',', index=False, lineterminator="", columns = head, mode='a', header=False, float_format='%.6f')
 
 
 coords_fname = make_bids_filename(isub, 'native', None, 'SEEGA.tsv', patient_output)
@@ -384,7 +387,7 @@ coords_pairs['seega_labels'] = slicer_chans_groups_orig
 
 coords_pairs = pd.DataFrame(coords_pairs)
 output_fname = make_bids_filename(isub, None, None, 'mapping.tsv', patient_output)
-coords_pairs.to_csv(output_fname, sep='\t', index=False, na_rep='n/a', lineterminator="", float_format='%.3f')
+coords_pairs.to_csv(output_fname, sep='\t', index=False, na_rep='n/a', lineterminator="", float_format='%.6f')
 
 
 

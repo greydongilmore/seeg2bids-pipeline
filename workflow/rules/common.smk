@@ -180,14 +180,14 @@ def get_age_appropriate_template_name(subject=None, key='t1w'):
             return config['adult_template'][config['adult_template']['active_space']][key]
 
 def get_noncontrast_filename(wildcards):
-    files=glob(bids(root=join(config['out_dir'], 'bids','sub-'+config['subject_prefix']+f'{wildcards.subject}'), prefix='sub-'+config['subject_prefix']+f'{wildcards.subject}', datatype='anat', session='pre', acq=config['noncontrast_t1']['acq'], run='*', suffix='T1w.nii.gz'))
+    files=glob(bids(root=join(config['out_dir'], 'bids','sub-'+f'{wildcards.subject}'), prefix='sub-'+f'{wildcards.subject}', datatype='anat', session='pre', acq=config['noncontrast_t1']['acq'], run='*', suffix='T1w.nii.gz'))
     if len(files) <=1:
-        file=expand(bids(root=join(config['out_dir'], 'bids','sub-'+config['subject_prefix']+'{subject}'), prefix='sub-'+config['subject_prefix']+'{subject}', datatype='anat', session='pre', acq=config['noncontrast_t1']['acq'], run='01', suffix='T1w.nii.gz'),subject=wildcards.subject)
+        file=expand(bids(root=join(config['out_dir'], 'bids','sub-'+'{subject}'), prefix='sub-'+'{subject}', datatype='anat', session='pre', acq=config['noncontrast_t1']['acq'], run='01', suffix='T1w.nii.gz'),subject=wildcards.subject)
         print(file)
         if not exists(file[0]):
-            file=expand(bids(root=join(config['out_dir'], 'bids','sub-'+config['subject_prefix']+'{subject}'), prefix='sub-'+config['subject_prefix']+'{subject}', datatype='anat', session='pre', acq=config['noncontrast_t1']['acq'], run='02', suffix='T1w.nii.gz'),subject=wildcards.subject)
+            file=expand(bids(root=join(config['out_dir'], 'bids','sub-'+'{subject}'), prefix='sub-'+'{subject}', datatype='anat', session='pre', acq=config['noncontrast_t1']['acq'], run='02', suffix='T1w.nii.gz'),subject=wildcards.subject)
             if not exists(file[0]):
-                file=expand(bids(root=join(config['out_dir'], 'bids','sub-'+config['subject_prefix']+'{subject}'), prefix='sub-'+config['subject_prefix']+'{subject}', datatype='anat', session='pre', run='01', suffix='T1w.nii.gz'),subject=wildcards.subject)
+                file=expand(bids(root=join(config['out_dir'], 'bids','sub-'+'{subject}'), prefix='sub-'+'{subject}', datatype='anat', session='pre', run='01', suffix='T1w.nii.gz'),subject=wildcards.subject)
     
     files.sort(key=lambda f: int(re.sub('\D', '', f)))
     file=files[0]
@@ -196,9 +196,9 @@ def get_noncontrast_filename(wildcards):
 
 def get_noncontrast_filename_fs(wildcards):
     ses=config['fastsurfer_vol']['ses']
-    files=glob(bids(root=join(config['out_dir'], 'bids','sub-'+config['subject_prefix']+f'{wildcards.subject}'), prefix='sub-'+config['subject_prefix']+f'{wildcards.subject}', datatype='anat', session=ses, acq=config['fastsurfer_vol']['acq'], desc=config['fastsurfer_vol']['desc'], run='*', suffix=config['fastsurfer_vol']['suffix']+config['fastsurfer_vol']['ext']))
+    files=glob(bids(root=join(config['out_dir'], 'bids','sub-'+f'{wildcards.subject}'), prefix='sub-'+f'{wildcards.subject}', datatype='anat', session=ses, acq=config['fastsurfer_vol']['acq'], desc=config['fastsurfer_vol']['desc'], run='*', suffix=config['fastsurfer_vol']['suffix']+config['fastsurfer_vol']['ext']))
     if len(files) <1:
-        file=expand(bids(root=join(config['out_dir'], 'bids','sub-'+config['subject_prefix']+'{subject}'), prefix='sub-'+config['subject_prefix']+'{subject}', datatype='anat', session=ses, acq=config['fastsurfer_vol']['acq'], desc=config['fastsurfer_vol']['desc'], run=config['fastsurfer_vol']['run'], suffix=config['fastsurfer_vol']['suffix']+config['fastsurfer_vol']['ext']),subject=wildcards.subject)
+        file=expand(bids(root=join(config['out_dir'], 'bids','sub-'+'{subject}'), prefix='sub-'+'{subject}', datatype='anat', session=ses, acq=config['fastsurfer_vol']['acq'], desc=config['fastsurfer_vol']['desc'], run=config['fastsurfer_vol']['run'], suffix=config['fastsurfer_vol']['suffix']+config['fastsurfer_vol']['ext']),subject=wildcards.subject)
         print(file)
     
     files.sort(key=lambda f: int(re.sub('\D', '', f)))
@@ -207,9 +207,9 @@ def get_noncontrast_filename_fs(wildcards):
     return file
 
 def get_pre_t1_filename(wildcards):
-    files=glob(bids(root=join(config['out_dir'], 'bids'), subject=config['subject_prefix']+f'{wildcards.subject}', datatype='anat', session='pre', run='*', suffix='T1w.nii.gz'))
+    files=glob(bids(root=join(config['out_dir'], 'bids'), subject=f'{wildcards.subject}', datatype='anat', session='pre', run='*', suffix='T1w.nii.gz'))
     if len(files)==0:
-        file=expand(bids(root=join(config['out_dir'], 'bids'), subject=config['subject_prefix']+'{subject}', datatype='anat', session='pre', acq=config['noncontrast_t1']['acq'], run='01', suffix='T1w.nii.gz'), subject=wildcards.subject)
+        file=expand(bids(root=join(config['out_dir'], 'bids'), subject='{subject}', datatype='anat', session='pre', acq=config['noncontrast_t1']['acq'], run='01', suffix='T1w.nii.gz'), subject=wildcards.subject)
     else:
         files.sort(key=lambda f: int(re.sub('\D', '', f)))
         file=files[-1]

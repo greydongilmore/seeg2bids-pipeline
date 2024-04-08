@@ -14,16 +14,11 @@ from io import BytesIO
 from matplotlib import pyplot as plt
 import matplotlib
 import glob
-matplotlib.use('Qt5Agg')
 import os
 
-def bounding_box(img):
-	x =np.any(img, axis=0)
-	y = np.any(img, axis=1)
-	ymin, ymax = np.where(y)[0][[0, -1]]
-	xmin, xmax = np.where(x)[0][[0, -1]]
-	bbox = np.array([ymin,ymax,xmin,xmax])
-	return bbox
+
+
+#%%
 
 debug = True
 
@@ -38,9 +33,9 @@ if debug:
 		def __init__(self, **kwargs):
 			self.__dict__.update(kwargs)
 
-	isub = 'sub-P021'
+	isub = 'sub-P142'
 	#data_dir = r'/media/greydon/lhsc_data/SEEG_rerun/derivatives'
-	data_dir = r'/home/greydon/Documents/datasets/SEEG_peds/derivatives'
+	data_dir = r'/home/greydon/Documents/data/SEEG/derivatives'
 
 	input = dotdict({
 			'img_dir': f'{data_dir}/trajGuide/derivatives/{isub}/summaries/*.svg',
@@ -82,5 +77,3 @@ for ifile in [x for x in glob.glob(snakemake.input.img_dir) if '_red' not in os.
 	cv2.imwrite(out_fname, img_crop)
 
 
-plt.figure(figsize=(10, 10))
-plt.imshow(img_crop)

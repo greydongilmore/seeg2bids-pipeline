@@ -3,7 +3,7 @@
 if config['noncontrast_t1']['present']:
     rule import_subj_t1_hippunfold:
         input: 
-            in_t1w=get_noncontrast_filename,
+            in_t1w=get_noncontrast_filename_fs,
         params:
             in_dir = directory(join(config['out_dir'], 'derivatives', 'hippunfold_in')),
             in_dir_sub = directory(join(config['out_dir'], 'derivatives', 'hippunfold_in','sub-'+subject_id)),

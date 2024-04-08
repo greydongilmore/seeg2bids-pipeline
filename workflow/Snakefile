@@ -10,7 +10,7 @@ import numpy as np
 configfile: 'config/config.yml'
 validate(config, "schemas/config.schema.yml")
 
-subject_id = config['subject_prefix']+'{subject}'
+subject_id = '{subject}'
 
 config['out_dir'] = config['bids_dir']
 config['participants_tsv'] = join(config['bids_dir'], 'participants_run.tsv')
@@ -18,14 +18,12 @@ config['participants_tsv'] = join(config['bids_dir'], 'participants_run.tsv')
 if exists(config['participants_tsv']):
     df = pd.read_table(config['participants_tsv'], dtype = str, header=0)
     subjects=df.participant_id.to_list()
-    if 'sub-P' in subjects[0]:
-        subjects = [ s.strip('sub-P') for s in subjects]
-    elif 'sub-' in subjects[0]:
-        subjects = [x.split('-')[1] for x in subjects]
+    if isinstance(subjects[0],str):
+        subjects = [ s.split('-')[-1] for s in subjects]
     else:
         subjects = [ str(s).zfill(3) for s in subjects]
 else:
-    subjects = [x.split('-')[1].strip(config['subject_prefix']) for x in listdir(join(config['bids_dir'],'bids')) if isdir(join(config['bids_dir'], 'bids',x)) and x.startswith('sub')]
+    subjects = [x.split('-')[-1] for x in listdir(join(config['bids_dir'],'bids')) if isdir(join(config['bids_dir'], 'bids',x)) and x.startswith('sub')]
 
 #this include is for the bids() function, and 
 #and any other global function declarations

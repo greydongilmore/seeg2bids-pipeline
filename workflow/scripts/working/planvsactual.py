@@ -183,9 +183,9 @@ if debug:
 		def __init__(self, **kwargs):
 			self.__dict__.update(kwargs)
 	
-	isub='sub-P021'
+	isub='sub-P142'
 	#data_dir=r'/media/greydon/lhsc_data/SEEG_rerun/derivatives/seeg_scenes'
-	data_dir=r'/home/greydon/Documents/datasets/SEEG_peds/derivatives/seeg_scenes'
+	data_dir=r'/home/greydon/Documents/data/SEEG/derivatives/seeg_scenes'
 	
 	input=dotdict({
 				'isub': isub,
@@ -267,15 +267,18 @@ if shopping_list:
 	if all(~df_shopping_list.loc[:,'Ord.'].isnull()):
 		df_shopping_list=df_shopping_list.sort_values(by=['Ord.']).reset_index(drop=True)
 	
+	if any([x.lower()=='label' for x in list(df_shopping_list.keys())]):
+		df_shopping_list['Label']=[x.strip() for x in df_shopping_list['Label']]
+	
 	error_idx=[]
 	for _,row_elec in df_shopping_list.iterrows():
 		if any([x.lower()=='label' for x in list(row_elec.keys())]):
-			error_idx.append([i for i,x in enumerate(label_set) if x.lower() == row_elec['Label'].lower()][0])
+			error_idx.append([i for i,x in enumerate(label_set) if x.lower() == row_elec['Label'].lower().strip()][0])
 		else:
-			if [i for i,x in enumerate(label_set) if f"({x.lower()})" in row_elec['Target'].lower()]:
-				error_idx.append([i for i,x in enumerate(label_set) if f"({x.lower()})" in row_elec['Target'].lower()][0])
-			elif [i for i,x in enumerate(label_set) if f"{x.lower()}" in row_elec['Target'].lower()]:
-				error_idx.append([i for i,x in enumerate(label_set) if f"{x.lower()}" in row_elec['Target'].lower()][0])
+			if [i for i,x in enumerate(label_set) if f"({x.lower()})" in row_elec['Target'].lower().strip()]:
+				error_idx.append([i for i,x in enumerate(label_set) if f"({x.lower()})" in row_elec['Target'].lower().strip()][0])
+			elif [i for i,x in enumerate(label_set) if f"{x.lower()}" in row_elec['Target'].lower().strip()]:
+				error_idx.append([i for i,x in enumerate(label_set) if f"{x.lower()}" in row_elec['Target'].lower().strip()][0])
 	
 	label_set=[label_set[x] for x in error_idx]
 
@@ -404,11 +407,11 @@ elec_data_raw=pd.DataFrame(elec_data)
 elec_table=elec_data_raw[['electrode','euclid_dist_target', 'radial_dist_target', 'euclid_dist_entry','radial_dist_entry','radial_angle','line_angle']].round(2)
 
 float_idx=1
-if shopping_list:
-	if 'implanter' in [x.lower() for x in list(df_shopping_list)]:
-		float_idx=2
-		elec_table.insert(1,'implanter', df_shopping_list['Implanter'].values)
-	
+# if shopping_list:
+# 	if 'implanter' in [x.lower() for x in list(df_shopping_list)]:
+# 		float_idx=2
+# 		elec_table.insert(1,'implanter', df_shopping_list['Implanter'].values)
+# 	
 
 for item in list(elec_table)[float_idx:]:
 	elec_table[item]=elec_table[item].astype(float)

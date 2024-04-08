@@ -102,8 +102,8 @@ def writeFCSV(coords,labels,output_fcsv,coordsys='0'):
 		out_df['vis'].append(1)
 		out_df['sel'].append(1)
 		out_df['lock'].append(1)
-		out_df['label'].append(ilabels)
-		out_df['description'].append('')
+		out_df['label'].append('')
+		out_df['description'].append(ilabels)
 		out_df['associatedNodeID'].append('')
 	
 	out_df=pd.DataFrame(out_df)
@@ -113,8 +113,15 @@ def writeFCSV(coords,labels,output_fcsv,coordsys='0'):
 #%%
 import SimpleITK as sitk
 
+<<<<<<< Updated upstream
 ros_file_path=r"F:\datasets\DBS\derivatives\seeg_scenes"
 isub='sub-P300'
+=======
+ros_file_path=r'/home/greydon/Documents/data/SEEG_peds/derivatives/seeg_scenes'
+ros_file_path=r'/home/greydon/Documents/data/SEEG_peds/derivatives/seeg_scenes/sub-P022'
+
+isub='sub-P022'
+>>>>>>> Stashed changes
 
 nii_fname=glob.glob(f"{ros_file_path}/{isub}/*-contrast*_T1w.nii.gz")
 ros_fname=glob.glob(f"{ros_file_path}/{isub}/*.ros")

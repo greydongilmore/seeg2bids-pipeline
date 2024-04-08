@@ -2,21 +2,21 @@
 #--- filepaths
 #
 
-#bids_dir: /home/greydon/Documents/datasets/SEEG_peds
-#bids_dir: /home/greydon/Documents/data/SEEG_rerun
+#bids_dir: /home/greydon/Documents/data/SEEG
+bids_dir: /home/greydon/Documents/data/seeg_frame
 
 #work computer
 #bids_dir: /home/greydon/Documents/data/cingulate_seizures
 
 #external drive
-bids_dir: /media/greydon/lhsc_data/datasets/SEEG_rerun
+#bids_dir: /media/greydon/lhsc_data/datasets/SEEG
 
 subject_prefix: 'P'
 
 registration:
     run: True
 segmentation:
-    run: True
+    run: False
 visqc:
     run: True
 fastsurfer:
@@ -54,22 +54,11 @@ post_image:
     session: 'post'
     datatype: 'ct'
     acq: 'Electrode'
-    run: '02'
+    run: '01'
     suffix: 'ct'
     ext: '.nii.gz'
     position: -1
     algo: greedy
-
-#post_image:
-#    present: True
-#    session: 'post'
-#    datatype: 'anat'
-#    acq: null
-#    run: '01'
-#    suffix: 'T1w'
-#    ext: '.nii.gz'
-#    position: -1
-#    algo: reg_aladin
 
 pet:
     present: False
@@ -81,21 +70,11 @@ other_vol:
     present: False
     session: 'pre'
     datatype: 'anat'
-    acq: "7T"
+    acq: '7T'
     run: '01'
     suffix: 'T1w'
     ext: '.nii.gz'
     algo: greedy
-
-#other_vol:
-#    present: True
-#    session: 'peri'
-#    datatype: 'ct'
-#    acq: 'Frame'
-#    run: '01'
-#    suffix: 'ct'
-#    ext: '.nii.gz'
-#    algo: reg_aladin
 
 seeg_contacts:
     present: False
