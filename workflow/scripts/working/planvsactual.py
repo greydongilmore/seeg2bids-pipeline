@@ -166,6 +166,7 @@ remap_dict={
 }
 
 
+
 #%%
 
 debug = True
@@ -183,7 +184,7 @@ if debug:
 		def __init__(self, **kwargs):
 			self.__dict__.update(kwargs)
 	
-	isub='sub-P142'
+	isub='sub-P143'
 	#data_dir=r'/media/greydon/lhsc_data/SEEG_rerun/derivatives/seeg_scenes'
 	data_dir=r'/home/greydon/Documents/data/SEEG/derivatives/seeg_scenes'
 	
