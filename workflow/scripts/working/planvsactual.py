@@ -184,7 +184,7 @@ if debug:
 		def __init__(self, **kwargs):
 			self.__dict__.update(kwargs)
 	
-	isub='sub-P143'
+	isub='sub-P148'
 	#data_dir=r'/media/greydon/lhsc_data/SEEG_rerun/derivatives/seeg_scenes'
 	data_dir=r'/home/greydon/Documents/data/SEEG/derivatives/seeg_scenes'
 	
@@ -253,7 +253,11 @@ if shopping_list:
 		updated_colnames[idx]=remap_dict[ilabel]
 	
 	df_shopping_list.columns=updated_colnames
-	df_shopping_list=df_shopping_list[df_shopping_list['Electrode label']!='aborted']
+	if 'Electrode label' in list(df_shopping_list):
+		df_shopping_list=df_shopping_list[df_shopping_list['Electrode label']!='aborted']
+	elif 'Serial Num.' in list(df_shopping_list):
+		df_shopping_list=df_shopping_list[df_shopping_list['Serial Num.']!='aborted']
+	
 	df_shopping_list=df_shopping_list.iloc[0:df_shopping_list.loc[:,'Target'].isnull().idxmax()]
 	df_shopping_list=df_shopping_list[~df_shopping_list['No.'].isnull()]
 	df_shopping_list=df_shopping_list[~df_shopping_list['Target'].isnull()]
@@ -262,11 +266,9 @@ if shopping_list:
 	if any(pd.isna(x) for x in list(df_shopping_list)):
 		df_shopping_list.drop(np.nan, axis = 1, inplace = True)
 	
-	if all(~df_shopping_list.loc[:,'Ord.'].isnull()):
-		df_shopping_list=df_shopping_list.sort_values(by=['Ord.']).reset_index(drop=True)
-	
-	if all(~df_shopping_list.loc[:,'Ord.'].isnull()):
-		df_shopping_list=df_shopping_list.sort_values(by=['Ord.']).reset_index(drop=True)
+	if any([x.lower()=='ord.' for x in list(df_shopping_list.keys())]):
+		if all(~df_shopping_list.loc[:,'Ord.'].isnull()):
+			df_shopping_list=df_shopping_list.sort_values(by=['Ord.']).reset_index(drop=True)
 	
 	if any([x.lower()=='label' for x in list(df_shopping_list.keys())]):
 		df_shopping_list['Label']=[x.strip() for x in df_shopping_list['Label']]
@@ -302,12 +304,22 @@ for igroup in label_set:
 	elec_temp['side']='L' if igroup.startswith('L') else 'R'
 	
 	if 'seega' in list(file_data):
-		seeg_idx=[i for i,x in enumerate(file_data['seega']['label'].values) if x.startswith(igroup)]
-		elec_data_temp = file_data['seega'].loc[seeg_idx,['x','y','z']].to_numpy()
-		dist = np.mean(np.linalg.norm(elec_data_temp[:-1,:] - elec_data_temp[1:,:], axis=1))
-		idx_ielec,val_ielec = min(enumerate(list(chan_label_dic)), key=lambda x: abs(x[1]-dist))
-		elec_temp['electrodeType']=chan_label_dic[val_ielec]
+		seeg_idx=[i for i,x in enumerate(file_data['seega']['label'].values) if igroup in x]
+		if all(file_data['seega'].loc[seeg_idx]['description'].isnull()):
+			elec_data_temp = file_data['seega'].loc[seeg_idx,['x','y','z']].to_numpy().astype(float)
+			dist = np.mean(np.linalg.norm(elec_data_temp[:-1,:] - elec_data_temp[1:,:], axis=1))
+			idx_ielec,val_ielec = min(enumerate(list(chan_label_dic)), key=lambda x: abs(x[1]-dist))
+			elec_temp['electrodeType']=chan_label_dic[val_ielec]
+		else:
+			elec_temp['electrodeType']=file_data['seega'].loc[seeg_idx]['description'].mode()[0]
 		elec_temp['numContacts']=file_data['seega'].loc[seeg_idx].shape[0]
+		
+# 		seeg_idx=[i for i,x in enumerate(file_data['seega']['label'].values) if x.startswith(igroup)]
+# 		elec_data_temp = file_data['seega'].loc[seeg_idx,['x','y','z']].to_numpy()
+# 		dist = np.mean(np.linalg.norm(elec_data_temp[:-1,:] - elec_data_temp[1:,:], axis=1))
+# 		idx_ielec,val_ielec = min(enumerate(list(chan_label_dic)), key=lambda x: abs(x[1]-dist))
+# 		elec_temp['electrodeType']=chan_label_dic[val_ielec]
+# 		elec_temp['numContacts']=file_data['seega'].loc[seeg_idx].shape[0]
 	
 	if 'planned' in list(file_data):
 		planned_idx=[i for i,x in enumerate(file_data['planned']['label'].values) if x.startswith(igroup)]
@@ -335,13 +347,13 @@ for igroup in label_set:
 		  file_data['planned'].loc[planned_idx,['x','y','z']].values[1])
 		plannedTipOffset=file_data['planned'].loc[planned_idx,['x','y','z']].values[1]-(norm*(mag-1))
 		
-		#elec_temp['plannedOffsetX']=plannedTipOffset[0]
-		#elec_temp['plannedOffsetY']=plannedTipOffset[1]
-		#elec_temp['plannedOffsetZ']=plannedTipOffset[2]
+		elec_temp['plannedOffsetX']=plannedTipOffset[0]
+		elec_temp['plannedOffsetY']=plannedTipOffset[1]
+		elec_temp['plannedOffsetZ']=plannedTipOffset[2]
 		
-		elec_temp['plannedOffsetX']=elec_temp['plannedTipX']
-		elec_temp['plannedOffsetY']=elec_temp['plannedTipY']
-		elec_temp['plannedOffsetZ']=elec_temp['plannedTipZ']
+		#elec_temp['plannedOffsetX']=elec_temp['plannedTipX']
+		#elec_temp['plannedOffsetY']=elec_temp['plannedTipY']
+		#elec_temp['plannedOffsetZ']=elec_temp['plannedTipZ']
 		
 		xyz_planned_entry = np.array([elec_temp['plannedEntryX'], elec_temp['plannedEntryY'], elec_temp['plannedEntryZ']])
 		xyz_actual_entry = np.array([elec_temp['actualEntryX'], elec_temp['actualEntryY'], elec_temp['actualEntryZ']]).T
@@ -422,7 +434,7 @@ if float_idx>1:
 else:
 	elec_table = elec_table.set_index(['electrode'])
 
-elec_table_styled=elec_table.style.applymap(lambda x: "background-color:#ccffcc;" if x<2 else 'background-color:#ffff00;' if x>=2 and x<3 else "background-color:#ffcccc;")\
+elec_table_styled=elec_table.style.map(lambda x: "background-color:#ccffcc;" if x<2 else 'background-color:#ffff00;' if x>=2 and x<3 else "background-color:#ffcccc;")\
 	.format('{0:,.2f}').set_properties(**{'text-align': 'center'})
 
 writer = pd.ExcelWriter(snakemake.output.out_excel, engine='openpyxl')

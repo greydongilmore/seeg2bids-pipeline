@@ -115,7 +115,7 @@ if debug:
 		def __init__(self, **kwargs):
 			self.__dict__.update(kwargs)
 
-	isub = 'sub-P143'
+	isub = 'sub-P148'
 	#data_dir = r'/media/greydon/lhsc_data/datasets/SEEG_peds/derivatives'
 	data_dir = r'/home/greydon/Documents/data/SEEG/derivatives'
 
@@ -136,7 +136,11 @@ for idx,ilabel in [(i,x) for i,x in enumerate(updated_colnames) if x in list(rem
 	updated_colnames[idx]=remap_dict[ilabel]
 
 df_elec.columns=updated_colnames
-df_elec=df_elec[df_elec['Electrode label']!='aborted']
+if 'Electrode label' in list(df_elec):
+	df_elec=df_elec[df_elec['Electrode label']!='aborted']
+elif 'Serial Num.' in list(df_elec):
+	df_elec=df_elec[df_elec['Serial Num.']!='aborted']
+
 df_elec=df_elec.iloc[0:df_elec.loc[:,'Target'].isnull().idxmax()]
 df_elec=df_elec[~df_elec['No.'].isnull()]
 df_elec=df_elec[~df_elec['Target'].isnull()]
@@ -145,9 +149,9 @@ df_elec = df_elec.dropna(axis=1, how='all')
 if any(pd.isna(x) for x in list(df_elec)):
 	df_elec.drop(np.nan, axis = 1, inplace = True)
 
-if all(~df_elec.loc[:,'Ord.'].isnull()):
-	df_elec=df_elec.sort_values(by=['Ord.']).reset_index(drop=True)
-
+if 'Ord.' in list(df_elec):
+	if all(~df_elec.loc[:,'Ord.'].isnull()):
+		df_elec=df_elec.sort_values(by=['Ord.']).reset_index(drop=True)
 
 
 pt_pin='PIN'
@@ -272,7 +276,14 @@ if os.path.exists(snakemake.input.error_metrics):
 
 
 for _, row_elec in df_elec.iterrows():
-	if not any (x in row_elec['Electrode label'] for x in aborted_lang):
+	
+	elec_label=None
+	if 'Electrode label' in list(row_elec.keys()):
+		elec_label='Electrode label'
+	elif 'Serial Num.' in list(row_elec.keys()):
+		elec_label='Serial Num.'
+		
+	if not any (x in row_elec[list(row_elec.keys())] for x in aborted_lang):
 		
 		if any([x.lower()=='label' for x in list(row_elec.keys())]):
 			slide_title=f"{row_elec['Target']} ({row_elec['Label']})"
@@ -293,7 +304,7 @@ for _, row_elec in df_elec.iterrows():
 		if errors_data is not None:
 			error_idx=[]
 			if any([x.lower() =='label' for x in list(row_elec.keys())]):
-				error_idx=[i for i,x in enumerate(errors_data['electrode']) if x.lower() == row_elec['Label'].lower()][0]
+				error_idx=[i for i,x in enumerate(list(errors_data['electrode'].values)) if  x.lower() in row_elec['Label'].lower()][0]
 			else:
 				if [i for i,x in enumerate(errors_data['electrode']) if f'({x.lower()})' in row_elec['Target'].lower()]:
 					error_idx=[i for i,x in enumerate(errors_data['electrode']) if f'({x.lower()})' in row_elec['Target'].lower()][0]
@@ -336,16 +347,16 @@ for _, row_elec in df_elec.iterrows():
 					
 					cell+=1
 		
-		if isinstance(row_elec['Electrode label'],int):
+		if isinstance(row_elec[elec_label],int):
 			elec_color = 'black'
-			elec_text = f"{row_elec['Electrode label']}".zfill(3)
-		elif '-' in row_elec['Electrode label']:
-			if row_elec['Electrode label'].split('-')[0].isdigit():
+			elec_text = f"{row_elec[elec_label]}".zfill(3)
+		elif '-' in row_elec[elec_label]:
+			if row_elec[elec_label].split('-')[0].isdigit():
 				elec_color = 'black'
-				elec_text = f"{row_elec['Electrode label']}".zfill(3)
+				elec_text = f"{row_elec[elec_label]}".zfill(3)
 		else:
-			elec_color = ''.join([x for x in row_elec['Electrode label'] if x.isalpha()]).lower()
-			elec_text = row_elec['Electrode label']
+			elec_color = ''.join([x for x in row_elec[elec_label] if x.isalpha()]).lower()
+			elec_text = row_elec[elec_label]
 		
 		textbox = elec_slide.shapes.add_textbox(Inches(13.5), Inches(4.5), Inches(2), Inches(.5))
 		textbox.fill.solid()

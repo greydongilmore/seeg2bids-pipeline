@@ -38,7 +38,7 @@ contrast_t1:
     present: True
 
 noncontrast_t1:
-    present: True
+    present: False
     session: 'pre'
     datatype: 'anat'
     acq: null
@@ -60,7 +60,7 @@ post_image:
     algo: greedy
 
 pet:
-    present: True
+    present: False
     position: -1
     task: rest
     algo: greedy
@@ -71,12 +71,22 @@ other_vol:
     datatype: 'anat'
     acq: '7T'
     run: '01'
-    suffix: 'T1w'
+    suffix: 'T2w'
+    ext: '.nii.gz'
+    algo: greedy
+
+other_vol2:
+    present: False
+    session: 'pre'
+    datatype: 'anat'
+    acq: '7T'
+    run: '01'
+    suffix: 'FLAIR'
     ext: '.nii.gz'
     algo: greedy
 
 seeg_contacts:
-    present: True
+    present: False
     space_coords: &space_coords derivatives/seeg_coordinates/sub-{subject}/sub-{subject}_space-{coords_space}_{coords_type}.fcsv
     scene_coords: &scene_coords derivatives/seeg_scenes/sub-{subject}/sub-{subject}_{coords_type}.fcsv
 

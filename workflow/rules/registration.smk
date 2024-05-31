@@ -339,6 +339,87 @@ if config['other_vol']['present']:
     final_outputs.extend(expand(bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,session=config['other_vol']['session'], suffix=config['other_vol']['suffix']+config['other_vol']['ext'],acq=config['other_vol']['acq'],space='T1w',desc='rigid',include_session_dir=False),
                         subject=subjects))
 
+
+if config['other_vol2']['present']:
+    if config['other_vol2']['datatype'] == 'anat':
+        rule import_other_vol2:
+            input: bids(root=join(config['out_dir'],'bids'), subject=subject_id, datatype=config['other_vol2']['datatype'], session=config['other_vol2']['session'], run=config['other_vol2']['run'], acq=config['other_vol2']['acq'], suffix=config['other_vol2']['suffix']+config['other_vol2']['ext']),
+            output: bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id, session=config['other_vol2']['session'], acq=config['other_vol2']['acq'], suffix=config['other_vol2']['suffix']+config['other_vol2']['ext'],include_session_dir=False)
+            group: 'preproc'
+            threads:4
+            shell: 
+                'ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={threads} '
+                'N4BiasFieldCorrection -d 3 -i {input} -o {output} -s 4 -b [200] -c [50x50x50x50,0.000001]'
+    else:
+        rule import_other_vol2:
+            input: bids(root=join(config['out_dir'],'bids'), subject=subject_id, datatype=config['other_vol2']['datatype'], session=config['other_vol2']['session'], run=config['other_vol2']['run'], acq=config['other_vol2']['acq'], suffix=config['other_vol2']['suffix']+config['other_vol2']['ext']),
+            output: bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id, session=config['other_vol2']['session'], acq=config['other_vol2']['acq'], suffix=config['other_vol2']['suffix']+config['other_vol2']['ext'],include_session_dir=False)
+            group: 'preproc'
+            shell: 'cp {input} {output}'
+
+    if config['other_vol2']['algo'] =='reg_aladin':
+        rule rigonly_aladin_other2:
+            input: 
+                flo = rules.import_other_vol2.output,
+                ref = get_reference_t1,
+            params:
+                dof=config['subject_reg']['affine_reg']['reg_aladin']['dof'],
+                c3d_affine_tool=config['ext_libs']['c3d_affine_tool'],
+            output: 
+                warped_subj = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id, session=config['other_vol2']['session'], suffix=config['other_vol2']['suffix']+config['other_vol2']['ext'],acq=config['other_vol2']['acq'],space='T1w',desc='rigidInterp',include_session_dir=False),
+                xfm_ras = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix='xfm.txt',from_=config['other_vol2']['suffix'],acq=config['other_vol2']['acq'],to='T1w',desc='rigid',type_='ras'),
+                xfm_ras_inv = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix='xfm.txt',to=config['other_vol2']['suffix'],acq=config['other_vol2']['acq'],from_='T1w',desc='rigid',type_='ras'),
+            #container: config['singularity']['neuroglia']
+            group: 'preproc'
+            shell:
+                'reg_aladin -flo {input.flo} -ref {input.ref} {params.dof} -interp 0 -res {output.warped_subj} -aff {output.xfm_ras_inv} -speeeeed&&'
+                '{params.c3d_affine_tool} {output.xfm_ras_inv} -inv -o {output.xfm_ras}'
+                #'flirt -in {input.flo} -ref {input.ref} -out {output.warped_subj} -omat {output.xfm_ras} -dof 6'
+
+    elif config['other_vol2']['algo'] =='greedy':
+        rule rigonly_greedy_other2:
+            input: 
+                flo = rules.import_other_vol2.output,
+                ref = get_reference_t1,
+            params:
+                n_iterations_linear=config['subject_reg']['affine_reg']['greedy']['n_iterations_linear'],
+                dof=config['subject_reg']['affine_reg']['greedy']['dof'],
+                c3d_affine_tool=config['ext_libs']['c3d_affine_tool'],
+            output: 
+                warped_subj = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id, session=config['other_vol2']['session'], suffix=config['other_vol2']['suffix']+config['other_vol2']['ext'],acq=config['other_vol2']['acq'],space='T1w',desc='rigidInterp',include_session_dir=False),
+                xfm_ras = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix='xfm.txt',from_=config['other_vol2']['suffix'],acq=config['other_vol2']['acq'],to='T1w',desc='rigid',type_='ras'),
+                xfm_ras_inv = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix='xfm.txt',to=config['other_vol2']['suffix'],acq=config['other_vol2']['acq'],from_='T1w',desc='rigid',type_='ras'),
+            group: 'preproc'
+            shell:
+                'greedy -d 3 -threads 4 -a -ia-image-centers -m MI -dof {params.dof} -i {input.ref} {input.flo} -o {output.xfm_ras_inv} -n {params.n_iterations_linear} &&'
+                'greedy -d 3 -threads 4 -rf {input.ref} -rm {input.flo} {output.warped_subj} -r {output.xfm_ras_inv}&&'
+                '{params.c3d_affine_tool} {output.xfm_ras_inv} -inv -o {output.xfm_ras}'
+
+    rule apply_noninterp_transform_other2:
+        input:
+            xfm=bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix='xfm.txt',from_=config['other_vol2']['suffix'],acq=config['other_vol2']['acq'],to='T1w',desc='rigid',type_='ras'),
+            flo = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id, session=config['other_vol2']['session'], acq=config['other_vol2']['acq'], suffix=config['other_vol2']['suffix']+config['other_vol2']['ext'],include_session_dir=False),
+        output:
+            warped_subj = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,session=config['other_vol2']['session'], suffix=config['other_vol2']['suffix']+config['other_vol2']['ext'],acq=config['other_vol2']['acq'],space='T1w',desc='rigid',include_session_dir=False),
+        group: 'preproc'
+        script: 
+            '../scripts/apply_transform_noninterp.py'
+
+    rule convert_other2_xfm_tfm:
+        input:
+            xfm=bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix='xfm.txt',from_=config['other_vol2']['suffix'],acq=config['other_vol2']['acq'],to='T1w',desc='rigid',type_='ras'),
+        output:
+            tfm=bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix='xfm.tfm',from_=config['other_vol2']['suffix'],acq=config['other_vol2']['acq'],to='T1w',desc='rigid',type_='ras'),
+        group: 'preproc'
+        script: 
+            '../scripts/convert_xfm_tfm.py'
+
+    final_outputs.extend(expand(bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix='xfm.tfm',from_=config['other_vol2']['suffix'],acq=config['other_vol2']['acq'],to='T1w',desc='rigid',type_='ras'),
+                        subject=subjects))
+    final_outputs.extend(expand(bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,session=config['other_vol2']['session'], suffix=config['other_vol2']['suffix']+config['other_vol2']['ext'],acq=config['other_vol2']['acq'],space='T1w',desc='rigid',include_session_dir=False),
+                        subject=subjects))
+
+
 rule import_mni_vol:
     input: get_age_appropriate_template_name(expand(subject_id,subject=subjects)),
     output: bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),prefix=f'sub-{subject_id}'+f"/tpl-"+get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),suffix='T1w.nii.gz', include_subject_dir=False),
