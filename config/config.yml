@@ -19,7 +19,7 @@ segmentation:
 visqc:
     run: True
 fastsurfer:
-    run: True
+    run: False
 hippunfold:
     run: False
 
@@ -38,14 +38,14 @@ contrast_t1:
     present: True
 
 noncontrast_t1:
-    present: False
+    present: True
     session: 'pre'
     datatype: 'anat'
     acq: null
     run: '01'
     suffix: 'T1w'
     ext: '.nii.gz'
-    position: -1
+    position: 0
     algo: greedy
 
 post_image:
@@ -60,7 +60,7 @@ post_image:
     algo: greedy
 
 pet:
-    present: False
+    present: True
     position: -1
     task: rest
     algo: greedy
@@ -76,17 +76,17 @@ other_vol:
     algo: greedy
 
 other_vol2:
-    present: False
-    session: 'pre'
-    datatype: 'anat'
-    acq: '7T'
-    run: '01'
-    suffix: 'FLAIR'
+    present: True
+    session: 'post'
+    datatype: 'ct'
+    acq: 'Electrode'
+    run: '02'
+    suffix: 'ct'
     ext: '.nii.gz'
     algo: greedy
 
 seeg_contacts:
-    present: False
+    present: True
     space_coords: &space_coords derivatives/seeg_coordinates/sub-{subject}/sub-{subject}_space-{coords_space}_{coords_type}.fcsv
     scene_coords: &scene_coords derivatives/seeg_scenes/sub-{subject}/sub-{subject}_{coords_type}.fcsv
 
