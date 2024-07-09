@@ -79,7 +79,7 @@ def getTrajectoriesList(textfile):
 			trajectory[pos] = np.round(trajectory[pos] * np.array([-1, -1, 1]),3) # LPS to RAS
 	return trajectories
 
-def writeFCSV(coords,labels,output_fcsv,coordsys='0'):
+def writeFCSV(coords,labels,descriptions,output_fcsv=None,coordsys='0'):
 	
 	with open(output_fcsv, 'w') as fid:
 		fid.write("# Markups fiducial file version = 4.11\n")
@@ -89,8 +89,12 @@ def writeFCSV(coords,labels,output_fcsv,coordsys='0'):
 	out_df={'node_id':[],'x':[],'y':[],'z':[],'ow':[],'ox':[],'oy':[],'oz':[],
 		'vis':[],'sel':[],'lock':[],'label':[],'description':[],'associatedNodeID':[]
 	}
+	if len(labels)<1:
+		labels=np.repeat("",len(coords))
+	if len(descriptions)<1:
+		descriptions=np.repeat("",len(coords))
 	
-	for ilabels,icoords,idx in zip(labels,coords,range(len(coords))):
+	for ilabels,idesc,icoords,idx in zip(labels,descriptions,coords,range(len(coords))):
 		out_df['node_id'].append(idx+1)
 		out_df['x'].append(icoords[0])
 		out_df['y'].append(icoords[1])
@@ -102,8 +106,8 @@ def writeFCSV(coords,labels,output_fcsv,coordsys='0'):
 		out_df['vis'].append(1)
 		out_df['sel'].append(1)
 		out_df['lock'].append(1)
-		out_df['label'].append('')
-		out_df['description'].append(ilabels)
+		out_df['label'].append(ilabels)
+		out_df['description'].append(idesc)
 		out_df['associatedNodeID'].append('')
 	
 	out_df=pd.DataFrame(out_df)
@@ -115,7 +119,7 @@ def writeFCSV(coords,labels,output_fcsv,coordsys='0'):
 
 ros_file_path=r'/home/greydon/Documents/data/SEEG_peds/derivatives/seeg_scenes/'
 
-isub='sub-P024'
+isub='sub-P025'
 
 nii_fname=glob.glob(f"{ros_file_path}/{isub}/*-contrast*_T1w.nii.gz")
 ros_fname=glob.glob(f"{ros_file_path}/{isub}/*.ros")
@@ -131,7 +135,7 @@ if nii_fname and ros_fname and not os.path.exists(out_fcsv):
 	#centering transform
 	orig_nifti=nb.load(nii_fname[0])
 	orig_affine=orig_nifti.affine
-	center_coordinates=np.array([x/ 2 for x in orig_nifti.header["dim"][1:4]-1.0])
+	center_coordinates=np.array([x/ 2 for x in orig_nifti.header["dim"][1:4]-1])
 	homogeneous_coord = np.concatenate((center_coordinates, np.array([1])), axis=0)
 	centering_transform_raw=np.c_[np.r_[np.eye(3),np.zeros((1,3))], np.round(np.dot(orig_affine, homogeneous_coord),3)]
 	
@@ -162,7 +166,7 @@ if nii_fname and ros_fname and not os.path.exists(out_fcsv):
 	
 	for itype,ifcsv in zip(['world','t1w'],[out_world_fcsv,out_fcsv]):
 		coords=[]
-		labels=[]
+		descs=[]
 		
 		for idx,traj in enumerate(rosa_parsed['trajectories']):
 			vecT = np.hstack([traj['target'],1])
@@ -179,15 +183,15 @@ if nii_fname and ros_fname and not os.path.exists(out_fcsv):
 			
 			traj['target_t']=np.round(tvecT,3).tolist()[:3]
 			coords.append(traj['target_t'])
-			labels.append(traj['name'])
+			descs.append(traj['name'])
 			
 			traj['entry_t']=np.round(tvecE,3).tolist()[:3]
 			coords.append(traj['entry_t'])
-			labels.append(traj['name'])
+			descs.append(traj['name'])
 			
 			rosa_parsed['trajectories'][idx]=traj
 		
-		writeFCSV(coords,labels,ifcsv,coordsys)
+		writeFCSV(coords,[],descs,output_fcsv=ifcsv,coordsys=coordsys)
 	
 	print(f"Done {isub}")
 	

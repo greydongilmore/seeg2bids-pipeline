@@ -2,7 +2,7 @@
 #--- filepaths
 #
 
-bids_dir: /home/greydon/Documents/data/SEEG
+bids_dir: /home/greydon/Documents/data/SEEG_peds
 
 #work computer
 #bids_dir: /home/greydon/Documents/data/cingulate_seizures
@@ -69,14 +69,14 @@ other_vol:
     present: False
     session: 'pre'
     datatype: 'anat'
-    acq: '7T'
+    acq: null
     run: '01'
-    suffix: 'T2w'
+    suffix: 'FLAIR'
     ext: '.nii.gz'
     algo: greedy
 
 other_vol2:
-    present: True
+    present: False
     session: 'post'
     datatype: 'ct'
     acq: 'Electrode'
