@@ -115,9 +115,9 @@ if debug:
 		def __init__(self, **kwargs):
 			self.__dict__.update(kwargs)
 
-	isub = 'sub-P152'
+	isub = 'sub-P025'
 	#data_dir = r'/media/greydon/lhsc_data/datasets/SEEG_peds/derivatives'
-	data_dir = r'/home/greydon/Documents/data/SEEG/derivatives'
+	data_dir = r'/home/greydon/Documents/data/SEEG_peds/derivatives'
 
 	input = dotdict({
 			'shopping_list': f'{data_dir}/seeg_scenes/{isub}/*shopping_list.xlsx',
@@ -127,61 +127,66 @@ if debug:
 	snakemake = Namespace(input=input)
 
 
-df_elec_raw = pd.read_excel(glob.glob(snakemake.input.shopping_list)[0],header=None)
-df_elec=df_elec_raw.iloc[4:,:].reset_index(drop=True)
-
-# need to update the column names
-updated_colnames=df_elec_raw.iloc[3].values
-for idx,ilabel in [(i,x) for i,x in enumerate(updated_colnames) if x in list(remap_dict)]:
-	updated_colnames[idx]=remap_dict[ilabel]
-
-df_elec.columns=updated_colnames
-if 'Electrode label' in list(df_elec):
-	df_elec=df_elec[df_elec['Electrode label']!='aborted']
-elif 'Serial Num.' in list(df_elec):
-	df_elec=df_elec[df_elec['Serial Num.']!='aborted']
-
-df_elec=df_elec.iloc[0:df_elec.loc[:,'Target'].isnull().idxmax()]
-df_elec=df_elec[~df_elec['No.'].isnull()]
-df_elec=df_elec[~df_elec['Target'].isnull()]
-df_elec = df_elec.dropna(axis=1, how='all')
-
-if any(pd.isna(x) for x in list(df_elec)):
-	df_elec.drop(np.nan, axis = 1, inplace = True)
-
-if 'Ord.' in list(df_elec):
-	if all(~df_elec.loc[:,'Ord.'].isnull()):
-		df_elec=df_elec.sort_values(by=['Ord.']).reset_index(drop=True)
-
-
 pt_pin='PIN'
-pin_idx=[i for i,x in enumerate(df_elec_raw.iloc[1].values) if x =='PIN']
-if pin_idx:
-	pt_pin = df_elec_raw.iloc[1,pin_idx[0]+1]
-
-
 sx_date = 'yyyy-mm-dd'
-sx_idx=[i for i,x in enumerate(df_elec_raw.iloc[2].values) if x =='Date']
-if sx_idx:
-	if isinstance(df_elec_raw.iloc[2,sx_idx[0]+1], datetime.datetime):
-		sx_date = df_elec_raw.iloc[2,sx_idx[0]+1].strftime('%Y-%m-%d')
-	elif '_' in df_elec_raw.iloc[2,sx_idx[0]+1]:
-		sx_date = datetime.datetime.strptime(df_elec_raw.iloc[2,sx_idx[0]+1], '%Y_%m_%d').strftime('%Y-%m-%d')
-	else:
-		sx_date = datetime.datetime.strptime(df_elec_raw.iloc[2,sx_idx[0]+1], '%d/%b/%y').strftime('%Y-%m-%d')
-
-
 lastname="lastname"
 firstname="firstname"
-name_idx=[i for i,x in enumerate(df_elec_raw.iloc[0].values) if x =='Name']
-if name_idx:
-	if ',' in df_elec_raw.iloc[0,name_idx[0]+1]:
-		lastname,firstname=df_elec_raw.iloc[0,name_idx[0]+1].split(',')
-	else:
-		firstname,lastname=df_elec_raw.iloc[0,name_idx[0]+1].split(' ')
+
+
+if glob.glob(snakemake.input.shopping_list):
+	df_elec_raw = pd.read_excel(glob.glob(snakemake.input.shopping_list)[0],header=None)
+	df_elec=df_elec_raw.iloc[4:,:].reset_index(drop=True)
 	
-	firstname=firstname.strip()
-	lastname=lastname.strip()
+	# need to update the column names
+	updated_colnames=df_elec_raw.iloc[3].values
+	for idx,ilabel in [(i,x) for i,x in enumerate(updated_colnames) if x in list(remap_dict)]:
+		updated_colnames[idx]=remap_dict[ilabel]
+
+	df_elec.columns=updated_colnames
+	if 'Electrode label' in list(df_elec):
+		df_elec=df_elec[df_elec['Electrode label']!='aborted']
+	elif 'Serial Num.' in list(df_elec):
+		df_elec=df_elec[df_elec['Serial Num.']!='aborted']
+
+	df_elec=df_elec.iloc[0:df_elec.loc[:,'Target'].isnull().idxmax()]
+	df_elec=df_elec[~df_elec['No.'].isnull()]
+	df_elec=df_elec[~df_elec['Target'].isnull()]
+	df_elec = df_elec.dropna(axis=1, how='all')
+
+	if any(pd.isna(x) for x in list(df_elec)):
+		df_elec.drop(np.nan, axis = 1, inplace = True)
+
+	if 'Ord.' in list(df_elec):
+		if all(~df_elec.loc[:,'Ord.'].isnull()):
+			df_elec=df_elec.sort_values(by=['Ord.']).reset_index(drop=True)
+	
+	pin_idx=[i for i,x in enumerate(df_elec_raw.iloc[1].values) if x =='PIN']
+	if pin_idx:
+		pt_pin = df_elec_raw.iloc[1,pin_idx[0]+1]
+
+	sx_idx=[i for i,x in enumerate(df_elec_raw.iloc[2].values) if x =='Date']
+	if sx_idx:
+		if isinstance(df_elec_raw.iloc[2,sx_idx[0]+1], datetime.datetime):
+			sx_date = df_elec_raw.iloc[2,sx_idx[0]+1].strftime('%Y-%m-%d')
+		elif '_' in df_elec_raw.iloc[2,sx_idx[0]+1]:
+			sx_date = datetime.datetime.strptime(df_elec_raw.iloc[2,sx_idx[0]+1], '%Y_%m_%d').strftime('%Y-%m-%d')
+		else:
+			sx_date = datetime.datetime.strptime(df_elec_raw.iloc[2,sx_idx[0]+1], '%d/%b/%y').strftime('%Y-%m-%d')
+
+	name_idx=[i for i,x in enumerate(df_elec_raw.iloc[0].values) if x =='Name']
+	if name_idx:
+		if ',' in df_elec_raw.iloc[0,name_idx[0]+1]:
+			lastname,firstname=df_elec_raw.iloc[0,name_idx[0]+1].split(',')
+		else:
+			firstname,lastname=df_elec_raw.iloc[0,name_idx[0]+1].split(' ')
+		
+		firstname=firstname.strip()
+		lastname=lastname.strip()
+	
+elif os.path.exists(snakemake.input.error_metrics):
+	df_elec_raw=pd.read_excel(snakemake.input.error_metrics,header=0)
+	df_elec_raw = df_elec_raw.rename(columns={'electrode': 'Electrode label'})
+	df_elec=df_elec_raw
 
 
 prs=Presentation()
@@ -215,9 +220,10 @@ title_dict={
 title_slide=add_slide(prs, blank_slide_layout, title_dict)
 title_slide.name="title slide"
 
-# Shopping list
-shopping_list_slide=add_slide(prs, blank_slide_layout, {})
-shopping_list_slide.name="shopping list"
+if glob.glob(snakemake.input.shopping_list):
+	# Shopping list
+	shopping_list_slide=add_slide(prs, blank_slide_layout, {})
+	shopping_list_slide.name="shopping list"
 
 
 # Errors
@@ -232,8 +238,6 @@ title_dict={
 errors_data=None
 if os.path.exists(snakemake.input.error_metrics):
 	errors_data=pd.read_excel(snakemake.input.error_metrics,header=0)
-	
-	
 	error_slide=add_slide(prs, prs.slide_layouts[6],title_dict)
 	error_slide.name="errors"
 	error_slide.background.fill.solid()
@@ -287,8 +291,10 @@ for _, row_elec in df_elec.iterrows():
 		
 		if any([x.lower()=='label' for x in list(row_elec.keys())]):
 			slide_title=f"{row_elec['Target']} ({row_elec['Label']})"
-		else:
+		elif any([x.lower()=='target' for x in list(row_elec.keys())]):
 			slide_title=row_elec['Target']
+		else:
+			slide_title=row_elec['Electrode label']
 		
 		title_dict={
 			slide_title:{
@@ -305,11 +311,16 @@ for _, row_elec in df_elec.iterrows():
 			error_idx=[]
 			if any([x.lower() =='label' for x in list(row_elec.keys())]):
 				error_idx=[i for i,x in enumerate(list(errors_data['electrode'].values)) if  x.lower() in row_elec['Label'].lower()][0]
-			else:
+			elif any([x.lower() =='label' for x in list(row_elec.keys())]):
 				if [i for i,x in enumerate(errors_data['electrode']) if f'({x.lower()})' in row_elec['Target'].lower()]:
 					error_idx=[i for i,x in enumerate(errors_data['electrode']) if f'({x.lower()})' in row_elec['Target'].lower()][0]
 				elif [i for i,x in enumerate(errors_data['electrode']) if row_elec['Target'].lower().startswith(f'{x.lower()}')]:
 					error_idx=[i for i,x in enumerate(errors_data['electrode']) if row_elec['Target'].lower().startswith(f'{x.lower()}')][0]
+			else:
+				if [i for i,x in enumerate(errors_data['electrode']) if f'({x.lower()})' in row_elec['Electrode label'].lower()]:
+					error_idx=[i for i,x in enumerate(errors_data['electrode']) if f'({x.lower()})' in row_elec['Electrode label'].lower()][0]
+				elif [i for i,x in enumerate(errors_data['electrode']) if row_elec['Electrode label'].lower().startswith(f'{x.lower()}')]:
+					error_idx=[i for i,x in enumerate(errors_data['electrode']) if row_elec['Electrode label'].lower().startswith(f'{x.lower()}')][0]
 				
 			if isinstance(error_idx,int):
 				
@@ -354,6 +365,9 @@ for _, row_elec in df_elec.iterrows():
 			if row_elec[elec_label].split('-')[0].isdigit():
 				elec_color = 'black'
 				elec_text = f"{row_elec[elec_label]}".zfill(3)
+		elif elec_label == 'Electrode label':
+			elec_color = 'black'
+			elec_text = f"{row_elec[elec_label]}".zfill(3)
 		else:
 			elec_color = ''.join([x for x in row_elec[elec_label] if x.isalpha()]).lower()
 			elec_text = row_elec[elec_label]

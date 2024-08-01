@@ -2,7 +2,7 @@
 #--- filepaths
 #
 
-bids_dir: /home/greydon/Documents/data/SEEG_peds
+bids_dir: /home/greydon/Documents/data/SEEG
 
 #work computer
 #bids_dir: /home/greydon/Documents/data/cingulate_seizures
@@ -25,7 +25,7 @@ hippunfold:
 
 fastsurfer_vol:
     ses: 'pre'
-    acq: null           #use 'null' to ignore key
+    acq: '7T'           #use 'null' to ignore key
     desc: null          #use 'null' to ignore key
     run: '01'
     suffix: 'T1w'
@@ -38,10 +38,10 @@ contrast_t1:
     present: True
 
 noncontrast_t1:
-    present: True
+    present: False
     session: 'pre'
     datatype: 'anat'
-    acq: null
+    acq: '7T'
     run: '01'
     suffix: 'T1w'
     ext: '.nii.gz'
@@ -69,24 +69,24 @@ other_vol:
     present: False
     session: 'pre'
     datatype: 'anat'
-    acq: null
+    acq: '7T'
     run: '01'
-    suffix: 'FLAIR'
+    suffix: 'T1map'
     ext: '.nii.gz'
     algo: greedy
 
 other_vol2:
     present: False
-    session: 'post'
-    datatype: 'ct'
-    acq: 'Electrode'
-    run: '02'
-    suffix: 'ct'
+    session: 'pre'
+    datatype: 'anat'
+    acq: 'Tra'
+    run: '01'
+    suffix: 'T2w'
     ext: '.nii.gz'
     algo: greedy
 
 seeg_contacts:
-    present: True
+    present: False
     space_coords: &space_coords derivatives/seeg_coordinates/sub-{subject}/sub-{subject}_space-{coords_space}_{coords_type}.fcsv
     scene_coords: &scene_coords derivatives/seeg_scenes/sub-{subject}/sub-{subject}_{coords_type}.fcsv
 
@@ -162,7 +162,7 @@ fastsurfer_config:
     ses: 'pre'
     home: "/home/greydon/Documents/GitHub/FastSurfer"
     colors: resources/FreeSurferColorLUT.tsv
-    py: "python"
+    py: "python3.10"
     sid: 'fastsurfer'
     batch: 8
     threads: 4

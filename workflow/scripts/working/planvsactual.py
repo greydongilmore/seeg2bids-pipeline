@@ -184,9 +184,9 @@ if debug:
 		def __init__(self, **kwargs):
 			self.__dict__.update(kwargs)
 	
-	isub='sub-P152'
+	isub='sub-P025'
 	#data_dir=r'/media/greydon/lhsc_data/SEEG_rerun/derivatives/seeg_scenes'
-	data_dir=r'/home/greydon/Documents/data/SEEG/derivatives/seeg_scenes'
+	data_dir=r'/home/greydon/Documents/data/SEEG_peds/derivatives/seeg_scenes'
 	
 	input=dotdict({
 				'isub': isub,
@@ -351,9 +351,9 @@ for igroup in label_set:
 		elec_temp['plannedOffsetY']=plannedTipOffset[1]
 		elec_temp['plannedOffsetZ']=plannedTipOffset[2]
 		
-		#elec_temp['plannedOffsetX']=elec_temp['plannedTipX']
-		#elec_temp['plannedOffsetY']=elec_temp['plannedTipY']
-		#elec_temp['plannedOffsetZ']=elec_temp['plannedTipZ']
+# 		elec_temp['plannedOffsetX']=elec_temp['plannedTipX']
+# 		elec_temp['plannedOffsetY']=elec_temp['plannedTipY']
+# 		elec_temp['plannedOffsetZ']=elec_temp['plannedTipZ']
 		
 		xyz_planned_entry = np.array([elec_temp['plannedEntryX'], elec_temp['plannedEntryY'], elec_temp['plannedEntryZ']])
 		xyz_actual_entry = np.array([elec_temp['actualEntryX'], elec_temp['actualEntryY'], elec_temp['actualEntryZ']]).T

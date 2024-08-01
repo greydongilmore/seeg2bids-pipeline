@@ -16,6 +16,7 @@ import pandas as pd
 from collections import ChainMap
 np.set_printoptions(precision=3,suppress=True)
 
+
 def extractTokens(textfile):
 	# Token starts with [%%tokenname%%]
 	# Tokens are in a line
@@ -32,42 +33,41 @@ def extractTokens(textfile):
 
 
 def parseROSAfile(ros_fname):
-	rosadata = {
-		'ATFormRAS': np.diag([-1,-1,1,1]),
-	}
 	
 	with open(ros_fname, 'r') as f:
 		textfile = f.read()
 	
-	rosadata['ac']=getCoordinates(textfile, 'AC').tolist()
-	rosadata['pc']=getCoordinates(textfile, 'PC').tolist()
-	rosadata['ih']=getCoordinates(textfile, 'IH').tolist()
+	rosadata=getMeta(r'\[BEGIN\]\n(.+?)\n\[SERIE_UID\]', textfile)[0]
+	rosadata['ATFormRAS'] = np.diag([-1,-1,1,1])
+	rosadata['ac']=getCoordinates(textfile, queryPoint='AC',queryHead='ACPC').tolist()
+	rosadata['pc']=getCoordinates(textfile, queryPoint='PC',queryHead='ACPC').tolist()
+	rosadata['ih']=getCoordinates(textfile, queryPoint='IH',queryHead='ACPC').tolist()
 	rosadata['trajectories']=getTrajectoriesList(textfile)
-	rosadata['volumes']=getVolumes(textfile)
+	rosadata['volumes']=getMeta(r'\[IMAGERY_TYPE\]\n(.+?)\n\[IMAGERY_3DREF\]', textfile)
+	rosadata['robot']=getMeta(r'\[ROBOT\]\n(.+?)\n\[END\]', textfile)
 	
 	return rosadata
 
-def getVolumes(textfile):
+def getMeta(search_str, textfile):
 	displays=[]
-	result = re.findall(r'\[IMAGERY_TYPE\]\n(.+?)\n\[IMAGERY_3DREF\]', textfile, re.DOTALL)
+	result = re.findall(search_str, textfile, re.DOTALL)
 	for iresult in result:
 		data = dict(ChainMap(*extractTokens(iresult)))
 		for key,value in data.items():
 			temp=value.split('\n')[-1].strip()
-			if key == 'TRdicomRdisplay':
+			if key.startswith('TR'):
 				temp=np.array([float(x) for x in temp.split(' ')]).reshape(4, 4)
 			data[key]=temp
 		displays.append(data)
 	
 	return displays
 
-def getCoordinates(textfile, queryPoint):
-	pattern = r"(?<=\[ACPC\]).*" + queryPoint + r" \d -?\d+\.\d+ -?\d+\.\d+ -?\d+\.\d+"
+def getCoordinates(textfile, queryPoint, queryHead):
+	pattern = rf"(?<=\[{queryHead}\]).*" + queryPoint + r" \d -?\d+\.\d+ -?\d+\.\d+ -?\d+\.\d+"
 	m = re.search(pattern, textfile, re.DOTALL)
 	coords_str = m.group().split(' ')[-3:]
 	coords_lps = np.array(list(map(float, coords_str)))
-	coords_ras = coords_lps * np.array([-1, -1, 1])
-	return coords_ras
+	return coords_lps
 
 def getTrajectoriesList(textfile):
 	pattern = r"(?P<name>[\^-\w]+) (?P<type>\d) (?P<color>\d+) (?P<entry_point_defined>\d) (?P<entry>-?\d+\.\d+ -?\d+\.\d+ -?\d+\.\d+) (?P<target_point_defined>\d) (?P<target>-?\d+\.\d+ -?\d+\.\d+ -?\d+\.\d+) (?P<instrument_length>\d+\.\d+) (?P<instrument_diameter>\d+\.\d+)\n"
@@ -76,7 +76,6 @@ def getTrajectoriesList(textfile):
 		trajectory['name']=trajectory['name'].replace('^',' ')
 		for pos in ['entry', 'target']:
 			trajectory[pos] = np.array(list(map(float, trajectory[pos].split(' ')))) # str to array
-			trajectory[pos] = np.round(trajectory[pos] * np.array([-1, -1, 1]),3) # LPS to RAS
 	return trajectories
 
 def writeFCSV(coords,labels,descriptions,output_fcsv=None,coordsys='0'):
@@ -123,12 +122,10 @@ isub='sub-P025'
 
 nii_fname=glob.glob(f"{ros_file_path}/{isub}/*-contrast*_T1w.nii.gz")
 ros_fname=glob.glob(f"{ros_file_path}/{isub}/*.ros")
-out_fcsv=os.path.join(ros_file_path,isub,f'{isub}_planned.fcsv')
-out_world_fcsv=os.path.join(ros_file_path,isub,f'{isub}_space-world_planned.fcsv')
 out_tfm=os.path.join(ros_file_path,isub,f'{isub}_from-subject_to-world_planned.tfm')
 out_inv_tfm=os.path.join(ros_file_path,isub,f'{isub}_from-world_to-subject_planned.tfm')
 
-if nii_fname and ros_fname and not os.path.exists(out_fcsv):
+if nii_fname and ros_fname:
 	lps2ras=np.diag([-1, -1, 1, 1])
 	ras2lps=np.diag([-1, -1, 1, 1])
 	
@@ -137,14 +134,24 @@ if nii_fname and ros_fname and not os.path.exists(out_fcsv):
 	orig_affine=orig_nifti.affine
 	center_coordinates=np.array([x/ 2 for x in orig_nifti.header["dim"][1:4]-1])
 	homogeneous_coord = np.concatenate((center_coordinates, np.array([1])), axis=0)
-	centering_transform_raw=np.c_[np.r_[np.eye(3),np.zeros((1,3))], np.round(np.dot(orig_affine, homogeneous_coord),3)]
+	centering_transform_raw=np.c_[np.vstack([np.eye(3),np.zeros(3)]), np.round(np.dot(orig_affine,homogeneous_coord),3)]
+	
+	#parse ROS file
+	rosa_parsed=parseROSAfile(ros_fname[0])
+	
+# 	if not np.array_equal(rosa_parsed['ac'], rosa_parsed['pc']):
+# 		rosa_parsed['ac'] = (centering_transform_raw @ np.hstack([rosa_parsed['ac'],1]))[:3]
+# 		rosa_parsed['pc'] = (centering_transform_raw @ np.hstack([rosa_parsed['pc'],1]))[:3]
+# 	
 	
 	#store two transforms to file, to-world and to-t1w
 	for itype,ifcsv in zip(['world','t1w'],[out_inv_tfm,out_tfm]):
 		if itype=='t1w':
+			out_fcsv=os.path.join(ros_file_path,isub,f'{isub}_planned.fcsv')
 			centering_transform=np.linalg.inv(np.dot(ras2lps,np.dot(np.linalg.inv(centering_transform_raw),lps2ras)))
 			coordsys='0'
 		else:
+			out_fcsv=os.path.join(ros_file_path,isub,f'{isub}_space-world_planned.fcsv')
 			centering_transform=np.dot(ras2lps,np.dot(np.linalg.inv(centering_transform_raw),lps2ras))
 			coordsys='0'
 		
@@ -156,18 +163,9 @@ if nii_fname and ros_fname and not os.path.exists(out_fcsv):
 			fid.write("Transform: AffineTransform_double_3_3\n")
 			fid.write("Parameters: " + Parameters + "\n")
 			fid.write("FixedParameters: 0 0 0\n")
-	
-	#parse ROS file
-	rosa_parsed=parseROSAfile(ros_fname[0])
-	
-	if rosa_parsed['ac'] and rosa_parsed['pc']:
-		rosa_parsed['ac'] = (centering_transform_raw @ np.hstack([rosa_parsed['ac'],1]))[:3]
-		rosa_parsed['pc'] = (centering_transform_raw @ np.hstack([rosa_parsed['pc'],1]))[:3]
-	
-	for itype,ifcsv in zip(['world','t1w'],[out_world_fcsv,out_fcsv]):
+		
 		coords=[]
 		descs=[]
-		
 		for idx,traj in enumerate(rosa_parsed['trajectories']):
 			vecT = np.hstack([traj['target'],1])
 			vecE = np.hstack([traj['entry'],1])
@@ -177,9 +175,9 @@ if nii_fname and ros_fname and not os.path.exists(out_fcsv):
 				tvecE = vecE.T
 				coordsys='0'
 			else:
-				tvecT = centering_transform_raw @ vecT.T
-				tvecE = centering_transform_raw @ vecE.T
-				coordsys='0'
+				tvecT = centering_transform @ (vecT.T)
+				tvecE = centering_transform @ (vecE.T)
+				coordsys='1'
 			
 			traj['target_t']=np.round(tvecT,3).tolist()[:3]
 			coords.append(traj['target_t'])
@@ -191,7 +189,7 @@ if nii_fname and ros_fname and not os.path.exists(out_fcsv):
 			
 			rosa_parsed['trajectories'][idx]=traj
 		
-		writeFCSV(coords,[],descs,output_fcsv=ifcsv,coordsys=coordsys)
+		writeFCSV(coords,[],descs,output_fcsv=out_fcsv,coordsys=coordsys)
 	
 	print(f"Done {isub}")
 	

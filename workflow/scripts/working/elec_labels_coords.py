@@ -13,6 +13,7 @@ import csv
 from bids.layout import BIDSLayout
 import shutil
 from collections import OrderedDict
+from collections import ChainMap
 
 chan_label_dic = {
 					'LAntSSMA': 'LASSMA',
@@ -182,6 +183,7 @@ def determineFCSVCoordSystem(input_fcsv):
 	# need to determine if file is in RAS or LPS
 	# loop through header to find coordinate system
 	coordFlag = re.compile('# CoordinateSystem')
+	verFlag = re.compile('# Markups fiducial file version')
 	headFlag = re.compile('# columns')
 	coord_sys=None
 	headFin=None
@@ -197,6 +199,10 @@ def determineFCSVCoordSystem(input_fcsv):
 			cleaned_dict['# columns'] = cleaned_dict.pop(None)
 		if any(coordFlag.match(x) for x in list(cleaned_dict)):
 			coord_sys = list(cleaned_dict.values())[0]
+		if any(verFlag.match(x) for x in list(cleaned_dict)):
+			verString = list(filter(verFlag.match,  list(cleaned_dict)))
+			assert len(verString)==1
+			ver_fin = verString[0].split('=')[-1].strip()
 		if any(headFlag.match(x) for x in list(cleaned_dict)):
 			headFin=list(cleaned_dict.values())[0].split(',')
 	
@@ -212,7 +218,7 @@ def determineFCSVCoordSystem(input_fcsv):
 		
 		df.rename(columns={0:'node_id', 1:'x', 2:'y', 3:'z', 4:'ow', 5:'ox',
 							6:'oy', 7:'oz', 8:'vis', 9:'sel', 10:'lock',
-							11:'label', 12:'description', 13:'associatedNodeID'}, inplace=True)
+							11:'label', 12:'desc', 13:'associatedNodeID'}, inplace=True)
 		
 		df['associatedNodeID']= pd.Series(np.repeat('',df.shape[0]))
 		df['label']=[x.strip() for x in df['label']]
@@ -220,7 +226,7 @@ def determineFCSVCoordSystem(input_fcsv):
 		df.round(6).to_csv(input_fcsv, sep=',', index=False, lineterminator="", mode='a', header=False, float_format='%.6f')
 		
 		print(f"Converted LPS to RAS: {os.path.dirname(input_fcsv)}/{os.path.basename(input_fcsv)}")
-
+	return coord_sys,headFin
 
 debug = False
 
@@ -241,10 +247,10 @@ if debug:
 	#config=dotdict({'out_dir':'/media/stereotaxy/3E7CE0407CDFF11F/data/SEEG/imaging/clinical'})
 	
 	params=dotdict({'sub':sub})
-	input=dotdict({'seega_scene':f'/home/greydon/Documents/data/SEEG_peds/derivatives/seega_scenes/sub-{sub}'})
-	#input=dotdict({'seega_scene':f'/home/greydon/Documents/data/SEEG/derivatives/seega_scenes/sub-{sub}'})
+	input=dotdict({'seega_scene':f'/home/greydon/Documents/data/SEEG_peds/derivatives/seeg_scenes/sub-{sub}/sub-{sub}_SEEGA.fcsv'})
+	output=dotdict({'seega_fcsv':f'/home/greydon/Documents/data/SEEG/derivatives/seeg_coordinates/sub-{sub}/sub-{sub}_space-native_SEEGA.fcsv'})
 	
-	snakemake = Namespace(params=params, input=input,config=config)
+	snakemake = Namespace(params=params, input=input,output=output)
 
 #%%
 
@@ -267,12 +273,29 @@ patient_files = [x for x in patient_files if any(os.path.splitext(x)[0].lower().
 if acpc_file:
 	
 	# determine the coordinate system of the FCSV
-	determineFCSVCoordSystem(acpc_file[0])
+	coord_sys,head_info=determineFCSVCoordSystem(acpc_file[0])
+	head_info=dict(ChainMap(*[{i:x} for i,x in enumerate(head_info)]))
+	fcsv_data = pd.read_csv(acpc_file[0], skiprows=3, header=None)
+	fcsv_data=fcsv_data.iloc[:,:].rename(columns=head_info).reset_index(drop=True)
 	
+	rewrite=False
+	if fcsv_data.shape[1] != len(head_info):
+		fcsv_data = fcsv_data[list(head_info.values())[::-1]]
+		rewrite=True
+	
+	if rewrite:
+		with open(acpc_file[0], 'w') as fid:
+			fid.write("# Markups fiducial file version = GG\n")
+			fid.write(f"# CoordinateSystem = {coord_sys}\n")
+			fid.write("# columns = id,x,y,z,ow,ox,oy,oz,vis,sel,lock,label,desc,associatedNodeID\n")
+		
+		fcsv_data.round(6).to_csv(acpc_file[0], sep=',', index=False, lineterminator="", mode='a', header=False, float_format='%.6f')
+	
+	coord_sys,head_info=determineFCSVCoordSystem(acpc_file[0])
+	head_info=dict(ChainMap(*[{i:x} for i,x in enumerate(head_info)]))
 	acpc_data = pd.read_csv(acpc_file[0], skiprows=3, header=None)
-	acpc_data.rename(columns={0:'node_id', 1:'x', 2:'y', 3:'z', 4:'ow', 5:'ox',
-						6:'oy', 7:'oz', 8:'vis', 9:'sel', 10:'lock',
-						11:'label', 12:'description', 13:'associatedNodeID'}, inplace=True)
+	acpc_data=acpc_data.iloc[:,:].rename(columns=head_info).reset_index(drop=True)
+	
 	ac_point = acpc_data.loc[acpc_data['label'] =='ac', 'x':'z'].values[0]
 	pc_point = acpc_data.loc[acpc_data['label'] =='pc', 'x':'z'].values[0]
 	mcp_point = [(ac_point[0]+pc_point[0])/2, (ac_point[1]+pc_point[1])/2, (ac_point[2]+pc_point[2])/2]
@@ -287,15 +310,32 @@ if acpc_file:
 for ifile in patient_files:
 
 	# determine the coordinate system of the FCSV
-	determineFCSVCoordSystem(ifile)
-
+	coord_sys,head_info=determineFCSVCoordSystem(ifile)
+	head_info=dict(ChainMap(*[{i:x} for i,x in enumerate(head_info)]))
+	fcsv_data = pd.read_csv(ifile, skiprows=3, header=None)
+	fcsv_data=fcsv_data.iloc[:,:].rename(columns=head_info).reset_index(drop=True)
+	
+	rewrite=False
+	if fcsv_data.shape[1] != len(head_info):
+		fcsv_data = fcsv_data[list(head_info.values())[::-1]]
+		rewrite=True
+	
+	if rewrite:
+		with open(ifile, 'w') as fid:
+			fid.write("# Markups fiducial file version = GG\n")
+			fid.write(f"# CoordinateSystem = {coord_sys}\n")
+			fid.write("# columns = id,x,y,z,ow,ox,oy,oz,vis,sel,lock,label,desc,associatedNodeID\n")
+		
+		fcsv_data.round(6).to_csv(ifile, sep=',', index=False, lineterminator="", mode='a', header=False, float_format='%.6f')
+	
+	coord_sys,head_info=determineFCSVCoordSystem(ifile)
+	head_info=dict(ChainMap(*[{i:x} for i,x in enumerate(head_info)]))
 	data_table_full = pd.read_csv(ifile, skiprows=3, header=None)
-	data_table_full.rename(columns={0:'node_id', 1:'x', 2:'y', 3:'z', 4:'ow', 5:'ox',
-					6:'oy', 7:'oz', 8:'vis', 9:'sel', 10:'lock',
-					11:'label', 12:'description', 13:'associatedNodeID'}, inplace=True)
+	data_table_full=data_table_full.iloc[:,:].rename(columns=head_info).reset_index(drop=True)
 	
 	coords_type=os.path.splitext(os.path.basename(ifile))[0].split('_')[-1]
 	data_table_full['type'] = np.repeat(coords_type, data_table_full.shape[0])
+	print(data_table_full['label'])
 	data_table_full['label']=[x.strip() for x in data_table_full['label']]
 
 	if coords_type.lower().endswith('seega'):
@@ -342,7 +382,7 @@ for ifile in patient_files:
 			fid.write("# CoordinateSystem = 0\n")
 			fid.write("# columns = id,x,y,z,ow,ox,oy,oz,vis,sel,lock,label,desc,associatedNodeID\n")
 	
-		head = ['node_id', 'x_mcp', 'y_mcp', 'z_mcp', 'ow', 'ox', 'oy', 'oz', 'vis','sel', 'lock', 'label', 'description', 'associatedNodeID']
+		head = ['node_id', 'x_mcp', 'y_mcp', 'z_mcp', 'ow', 'ox', 'oy', 'oz', 'vis','sel', 'lock', 'label', 'desc', 'associatedNodeID']
 		data_table_full['node_id'] = ['vtkMRMLMarkupsFiducialNode_' + str(x) for x in range(data_table_full.shape[0])]
 		data_table_full['associatedNodeID'] = np.repeat('',data_table_full.shape[0])
 		data_table_full.round(6).to_csv(output_fname, sep=',', index=False, lineterminator="", columns = head, mode='a', header=False, float_format='%.6f')
@@ -363,7 +403,7 @@ for ifile in patient_files:
 		fid.write("# CoordinateSystem = 0\n")
 		fid.write("# columns = id,x,y,z,ow,ox,oy,oz,vis,sel,lock,label,desc,associatedNodeID\n")
 	
-	head = ['node_id', 'x', 'y', 'z', 'ow', 'ox', 'oy', 'oz', 'vis','sel', 'lock', 'label', 'description', 'associatedNodeID']
+	head = ['node_id', 'x', 'y', 'z', 'ow', 'ox', 'oy', 'oz', 'vis','sel', 'lock', 'label', 'desc', 'associatedNodeID']
 	del data_table_full['node_id']
 	del data_table_full['associatedNodeID']
 	data_table_full.insert(data_table_full.shape[1],'node_id',pd.Series(['vtkMRMLMarkupsFiducialNode_' + str(x) for x in range(data_table_full.shape[0])]))
