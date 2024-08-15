@@ -147,8 +147,8 @@ if debug:
 	
 	snakemake = Namespace(output=output, input=input,params=params)
 
-
-atlas_labels = pd.read_table(snakemake.params.atlas_labels)
+seg_out='/home/greydon/Documents/GitHub/trajectoryGuideModules/resources/ext_libs/space/tpl-MNI152NLin2009bAsym/tpl-MNI152NLin2009bAsym_res-1000_atlas-HydraPDmed_dseg.seg.nrrd'
+atlas_labels = pd.read_table('/home/greydon/Documents/GitHub/trajectoryGuideModules/resources/ext_libs/space/tpl-MNI152NLin2009bAsym/tpl-MNI152NLin2009bAsym_res-1000_atlas-HydraPDmed_dseg.tsv')
 atlas_labels.columns=atlas_labels.columns.str.lower()
 
 if not all(x in list(atlas_labels) for x in {'r','g','b'}):
@@ -164,9 +164,9 @@ if not all(x in list(atlas_labels) for x in {'r','g','b'}):
 else:
 	atlas_labels['lut']=atlas_labels[['r','g','b']].values.tolist()
 
-data_obj=nb.load(snakemake.input.segs)
+data_obj=nb.load('/home/greydon/Documents/GitHub/trajectoryGuideModules/resources/ext_libs/space/tpl-MNI152NLin2009bAsym/tpl-MNI152NLin2009bAsym_res-1000_atlas-HydraPDmed_dseg.nii.gz')
 
-write_nrrd(data_obj, snakemake.output.seg_nrrd, atlas_labels, snakemake.params.orien)
+write_nrrd(data_obj, seg_out, atlas_labels, 'ras')
 
 #%%
 
