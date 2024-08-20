@@ -115,9 +115,9 @@ if debug:
 		def __init__(self, **kwargs):
 			self.__dict__.update(kwargs)
 
-	isub = 'sub-P025'
+	isub = 'sub-P154'
 	#data_dir = r'/media/greydon/lhsc_data/datasets/SEEG_peds/derivatives'
-	data_dir = r'/home/greydon/Documents/data/SEEG_peds/derivatives'
+	data_dir = r'/home/greydon/Documents/data/SEEG/derivatives'
 
 	input = dotdict({
 			'shopping_list': f'{data_dir}/seeg_scenes/{isub}/*shopping_list.xlsx',

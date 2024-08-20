@@ -19,9 +19,9 @@ segmentation:
 visqc:
     run: True
 fastsurfer:
-    run: False
+    run: True
 hippunfold:
-    run: False
+    run: True
 
 fastsurfer_vol:
     ses: 'pre'
@@ -38,7 +38,7 @@ contrast_t1:
     present: True
 
 noncontrast_t1:
-    present: False
+    present: True
     session: 'pre'
     datatype: 'anat'
     acq: '7T'
@@ -66,12 +66,12 @@ pet:
     algo: greedy
 
 other_vol:
-    present: False
+    present: True
     session: 'pre'
     datatype: 'anat'
-    acq: '7T'
+    acq: null
     run: '01'
-    suffix: 'T1map'
+    suffix: 'FLAIR'
     ext: '.nii.gz'
     algo: greedy
 
@@ -86,7 +86,7 @@ other_vol2:
     algo: greedy
 
 seeg_contacts:
-    present: False
+    present: True
     space_coords: &space_coords derivatives/seeg_coordinates/sub-{subject}/sub-{subject}_space-{coords_space}_{coords_type}.fcsv
     scene_coords: &scene_coords derivatives/seeg_scenes/sub-{subject}/sub-{subject}_{coords_type}.fcsv
 

@@ -195,11 +195,28 @@ if config['post_image']['present']:
 
 if config['pet']['present']:
 
-    rule import_subj_pet:
-        input: get_pet_filename,
+    rule reorient_pet:
+        input: get_pet_filename
         output: bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix='pet.nii.gz')
         group: 'preproc'
-        shell: 'cp {input} {output}'
+        run:
+            import nibabel as nb
+            import numpy as np
+            orig_nifti=nb.load(input[0])
+            if len(orig_nifti.shape)>3:
+                avg = np.mean(orig_nifti.get_fdata(), axis=3)
+            else:
+                avg=orig_nifti.get_fdata()
+            ornt_my = nb.orientations.io_orientation(orig_nifti.affine)
+            ornt_lps = nb.orientations.axcodes2ornt(('R',"A","S"))
+            ornt = nb.orientations.ornt_transform(ornt_my,ornt_lps)
+            data3d_ornt = nb.orientations.apply_orientation(avg, ornt)
+            t_aff = nb.orientations.inv_ornt_aff(ornt_my, data3d_ornt.shape)
+            out_aff = np.dot(orig_nifti.affine, t_aff)
+            nimg = nb.Nifti1Image(data3d_ornt.astype(np.float32), out_aff)
+            nimg.set_qform(nimg.affine,1)
+            nimg.set_sform(nimg.affine,1)
+            nb.save(nimg, output[0])
 
     if config['pet']['algo'] =='reg_aladin':
         rule rigonly_aladin_pet:

@@ -184,9 +184,9 @@ if debug:
 		def __init__(self, **kwargs):
 			self.__dict__.update(kwargs)
 	
-	isub='sub-P025'
-	#data_dir=r'/media/greydon/lhsc_data/SEEG_rerun/derivatives/seeg_scenes'
-	data_dir=r'/home/greydon/Documents/data/SEEG_peds/derivatives/seeg_scenes'
+	isub='sub-P154'
+#	data_dir=r'/media/greydon/lhsc_data/SEEG_rerun/derivatives/seeg_scenes'
+	data_dir=r'/home/greydon/Documents/data/SEEG/derivatives/seeg_scenes'
 	
 	input=dotdict({
 				'isub': isub,
