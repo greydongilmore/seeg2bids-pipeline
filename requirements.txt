@@ -2,9 +2,8 @@ antspyx>=0.3.1
 dcmstack>=0.7.0
 dicognito>=0.11.0
 h5py>=3.6.0
-heudiconv==0.12.2
 mne>=1.5.0
-nilearn>=0.8.1
+#nilearn>=0.8.1
 openpyxl>=3.0.9
 pandas>=0.24.2
 pybids>=0.14.0
@@ -15,3 +14,10 @@ scikit-image>=0.19.2
 setuptools>=39.2.0
 snakemake>=5.23.0
 svgutils>=0.3.4
+
+heudiconv==0.12.2
+
+pyvista>=0.44.1
+seaborn>= 0.13.2
+tabula-py>=2.9.3
+trimesh>=4.4.7
