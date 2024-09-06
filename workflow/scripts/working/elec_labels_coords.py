@@ -206,26 +206,7 @@ def determineFCSVCoordSystem(input_fcsv):
 		if any(headFlag.match(x) for x in list(cleaned_dict)):
 			headFin=list(cleaned_dict.values())[0].split(',')
 	
-	if any(x in coord_sys for x in {'LPS','1'}):
-		df = pd.read_csv(input_fcsv, skiprows=3, header=None)
-		df[1] = -1 * df[1] # flip orientation in x
-		df[2] = -1 * df[2] # flip orientation in y
-		
-		with open(input_fcsv, 'w') as fid:
-			fid.write("# Markups fiducial file version = 4.11\n")
-			fid.write("# CoordinateSystem = 0\n")
-			fid.write("# columns = id,x,y,z,ow,ox,oy,oz,vis,sel,lock,label,desc,associatedNodeID\n")
-		
-		df.rename(columns={0:'node_id', 1:'x', 2:'y', 3:'z', 4:'ow', 5:'ox',
-							6:'oy', 7:'oz', 8:'vis', 9:'sel', 10:'lock',
-							11:'label', 12:'desc', 13:'associatedNodeID'}, inplace=True)
-		
-		df['associatedNodeID']= pd.Series(np.repeat('',df.shape[0]))
-		df['label']=[x.strip() for x in df['label']]
-
-		df.round(6).to_csv(input_fcsv, sep=',', index=False, lineterminator="", mode='a', header=False, float_format='%.6f')
-		
-		print(f"Converted LPS to RAS: {os.path.dirname(input_fcsv)}/{os.path.basename(input_fcsv)}")
+	
 	return coord_sys,headFin
 
 debug = False
@@ -320,13 +301,21 @@ for ifile in patient_files:
 		fcsv_data = fcsv_data[list(head_info.values())[::-1]]
 		rewrite=True
 	
+	if any(x in coord_sys for x in {'LPS','1'}):
+		fcsv_data['x'] = -1 * fcsv_data['x'] # flip orientation in x
+		fcsv_data['y'] = -1 * fcsv_data['y'] # flip orientation in y
+		rewrite=True
+	
 	if rewrite:
 		with open(ifile, 'w') as fid:
 			fid.write("# Markups fiducial file version = GG\n")
-			fid.write(f"# CoordinateSystem = {coord_sys}\n")
+			fid.write(f"# CoordinateSystem = 0\n")
 			fid.write("# columns = id,x,y,z,ow,ox,oy,oz,vis,sel,lock,label,desc,associatedNodeID\n")
 		
+		fcsv_data['associatedNodeID']= pd.Series(np.repeat('',fcsv_data.shape[0]))
+		fcsv_data['label']=[x.strip() for x in fcsv_data['label']]
 		fcsv_data.round(6).to_csv(ifile, sep=',', index=False, lineterminator="", mode='a', header=False, float_format='%.6f')
+		print(f"Converted LPS to RAS: {os.path.dirname(ifile)}/{os.path.basename(ifile)}")
 	
 	coord_sys,head_info=determineFCSVCoordSystem(ifile)
 	head_info=dict(ChainMap(*[{i:x} for i,x in enumerate(head_info)]))

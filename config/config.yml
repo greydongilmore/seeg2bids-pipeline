@@ -21,11 +21,11 @@ visqc:
 fastsurfer:
     run: True
 hippunfold:
-    run: True
+    run: False
 
 fastsurfer_vol:
     ses: 'pre'
-    acq: '7T'           #use 'null' to ignore key
+    acq: null           #use 'null' to ignore key
     desc: null          #use 'null' to ignore key
     run: '01'
     suffix: 'T1w'
@@ -41,7 +41,7 @@ noncontrast_t1:
     present: True
     session: 'pre'
     datatype: 'anat'
-    acq: '7T'
+    acq: null
     run: '01'
     suffix: 'T1w'
     ext: '.nii.gz'
@@ -53,37 +53,37 @@ post_image:
     session: 'post'
     datatype: 'ct'
     acq: 'Electrode'
-    run: '01'
+    run: '02'
     suffix: 'ct'
     ext: '.nii.gz'
     position: -1
-    algo: greedy
+    algo: ants
 
 pet:
     present: True
     position: -1
     task: rest
-    algo: greedy
+    algo: ants
 
 other_vol:
     present: True
     session: 'pre'
     datatype: 'anat'
-    acq: null
+    acq: '7T'
     run: '01'
-    suffix: 'FLAIR'
+    suffix: 'T1map'
     ext: '.nii.gz'
-    algo: greedy
+    algo: ants
 
 other_vol2:
-    present: False
+    present: True
     session: 'pre'
     datatype: 'anat'
-    acq: 'Tra'
+    acq: '7T'
     run: '01'
-    suffix: 'T2w'
+    suffix: 'T1w'
     ext: '.nii.gz'
-    algo: greedy
+    algo: ants
 
 seeg_contacts:
     present: True
@@ -99,7 +99,7 @@ subject_reg:
         reg_aladin:
             dof: "-rigOnly" # use "-rigOnly" for 6 DOF and "" for 12 DOF
         greedy:
-            n_iterations_linear: 100x50x20
+            n_iterations_linear: 100x50x10
             dof: 6
 
 template_reg:
