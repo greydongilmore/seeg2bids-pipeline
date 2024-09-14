@@ -117,7 +117,7 @@ if debug:
         def __init__(self, **kwargs):
             self.__dict__.update(kwargs)
 
-    isub = 'sub-P155'
+    isub = 'sub-P157'
     # data_dir = r'/media/greydon/lhsc_data/datasets/SEEG_peds/derivatives'
     data_dir = r'/home/greydon/Documents/data/SEEG/derivatives'
 

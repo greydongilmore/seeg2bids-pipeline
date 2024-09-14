@@ -53,30 +53,30 @@ post_image:
     session: 'post'
     datatype: 'ct'
     acq: 'Electrode'
-    run: '02'
+    run: '01'
     suffix: 'ct'
     ext: '.nii.gz'
     position: -1
     algo: ants
 
 pet:
-    present: True
+    present: False
     position: -1
     task: rest
     algo: ants
 
 other_vol:
-    present: True
+    present: False
     session: 'pre'
     datatype: 'anat'
-    acq: '7T'
+    acq: null
     run: '01'
-    suffix: 'T1map'
+    suffix: 'FLAIR'
     ext: '.nii.gz'
     algo: ants
 
 other_vol2:
-    present: True
+    present: False
     session: 'pre'
     datatype: 'anat'
     acq: '7T'

@@ -313,7 +313,7 @@ for ifile in patient_files:
 			fid.write("# columns = id,x,y,z,ow,ox,oy,oz,vis,sel,lock,label,desc,associatedNodeID\n")
 		
 		fcsv_data['associatedNodeID']= pd.Series(np.repeat('',fcsv_data.shape[0]))
-		fcsv_data['label']=[x.strip() for x in fcsv_data['label']]
+		fcsv_data['label']=[str(x).strip() for x in fcsv_data['label']]
 		fcsv_data.round(6).to_csv(ifile, sep=',', index=False, lineterminator="", mode='a', header=False, float_format='%.6f')
 		print(f"Converted LPS to RAS: {os.path.dirname(ifile)}/{os.path.basename(ifile)}")
 	
@@ -324,8 +324,7 @@ for ifile in patient_files:
 	
 	coords_type=os.path.splitext(os.path.basename(ifile))[0].split('_')[-1]
 	data_table_full['type'] = np.repeat(coords_type, data_table_full.shape[0])
-	print(data_table_full['label'])
-	data_table_full['label']=[x.strip() for x in data_table_full['label']]
+	data_table_full['label']=[str(x).strip() for x in data_table_full['label']]
 
 	if coords_type.lower().endswith('seega'):
 		groups,n_members = determine_groups(np.array(data_table_full['label'].values), True)
