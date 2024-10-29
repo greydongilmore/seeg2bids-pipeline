@@ -9,12 +9,8 @@ Created on Mon Feb 26 21:23:40 2024
 import cv2
 import numpy as np
 from cairosvg import svg2png
-from PIL import Image
-from io import BytesIO
-from matplotlib import pyplot as plt
-import matplotlib
 import glob
-import os
+import os,sys
 
 
 
@@ -33,12 +29,14 @@ if debug:
 		def __init__(self, **kwargs):
 			self.__dict__.update(kwargs)
 
-	isub = 'sub-P157'
-	#data_dir = r'/media/greydon/lhsc_data/SEEG_rerun/derivatives'
-	data_dir = r'/home/greydon/Documents/data/SEEG/derivatives'
-
+	isub = 'sub-P159'
+	if sys.platform =='linux':
+		data_dir = os.path.join('/home','greydon','Documents','data','SEEG','derivatives')
+	elif sys.platform =='linux':
+		data_dir = os.path.join('C','Users','greydon','Documents','data','SEEG','derivatives')
+	
 	input = dotdict({
-			'img_dir': f'{data_dir}/trajGuide/derivatives/{isub}/summaries/*.svg',
+			'img_dir': os.path.join(data_dir,'trajGuide','derivatives',isub,'summaries','*.svg'),
 	 })
 	
 	snakemake = Namespace(input=input)

@@ -2,7 +2,7 @@
 #--- filepaths
 #
 
-bids_dir: /home/greydon/Documents/data/SEEG
+bids_dir: /home/greydon/Documents/data/mayo
 
 #work computer
 #bids_dir: /home/greydon/Documents/data/cingulate_seizures
@@ -19,13 +19,13 @@ segmentation:
 visqc:
     run: True
 fastsurfer:
-    run: True
+    run: False
 hippunfold:
     run: False
 
 fastsurfer_vol:
-    ses: 'pre'
-    acq: null           #use 'null' to ignore key
+    ses: 'post'
+    acq: 'ablation'           #use 'null' to ignore key
     desc: null          #use 'null' to ignore key
     run: '01'
     suffix: 'T1w'
@@ -38,7 +38,7 @@ contrast_t1:
     present: True
 
 noncontrast_t1:
-    present: True
+    present: False
     session: 'pre'
     datatype: 'anat'
     acq: null
@@ -63,15 +63,15 @@ pet:
     present: False
     position: -1
     task: rest
-    algo: ants
+    algo: greedy
 
 other_vol:
     present: False
-    session: 'pre'
+    session: 'post'
     datatype: 'anat'
-    acq: null
+    acq: 'ablation'
     run: '01'
-    suffix: 'FLAIR'
+    suffix: 'T1w'
     ext: '.nii.gz'
     algo: ants
 
@@ -79,16 +79,16 @@ other_vol2:
     present: False
     session: 'pre'
     datatype: 'anat'
-    acq: '7T'
+    acq: 'Tra'
     run: '01'
-    suffix: 'T1w'
+    suffix: 'T2w'
     ext: '.nii.gz'
     algo: ants
 
 seeg_contacts:
-    present: True
+    present: False
     space_coords: &space_coords derivatives/seeg_coordinates/sub-{subject}/sub-{subject}_space-{coords_space}_{coords_type}.fcsv
-    scene_coords: &scene_coords derivatives/seeg_scenes/sub-{subject}/sub-{subject}_{coords_type}.fcsv
+    scene_coords: &scene_coords derivatives/slicer_scene/sub-{subject}/sub-{subject}_{coords_type}.fcsv
 
 #
 #--- registration paramters

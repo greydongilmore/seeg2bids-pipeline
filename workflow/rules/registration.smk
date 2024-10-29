@@ -99,6 +99,31 @@ elif config['contrast_t1']['present'] and config['noncontrast_t1']['present']:
                 'greedy -d 3 -threads 4 -rf {input.ref} -rm {input.flo} {output.warped_subj} -r {output.xfm_ras_inv}&&'
                 '{params.c3d_affine_tool} {output.xfm_ras_inv} -inv -o {output.xfm_ras}'
 
+    elif config['noncontrast_t1']['algo'] =='ants':
+        rule rigonly_ants_contrast:
+            input: 
+                flo = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,acq='noncontrast',suffix='T1w.nii.gz'),
+                ref = get_reference_t1,
+            params:
+                c3d_affine_tool=config['ext_libs']['c3d_affine_tool'],
+                xfm_ras_prefix = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix='',to='noncontrast',from_='contrast',desc='rigid',type_='ras'),
+            output: 
+                warped_subj = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix=config['noncontrast_t1']['suffix']+config['noncontrast_t1']['ext'],space='T1w',desc='rigidInterp'),
+                xfm_ras = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix='xfm.txt',from_='noncontrast',to='contrast',desc='rigid',type_='ras'),
+                xfm_ras_inv = bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix='0GenericAffine.mat',to='noncontrast',from_='contrast',desc='rigid',type_='ras'),
+            group: 'preproc'
+            shell:
+                'ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=4&&antsRegistration --verbose 1 --dimensionality 3 --float 1 '
+                '--output ["{params.xfm_ras_prefix}","{output.warped_subj}"] '
+                "--interpolation NearestNeighbor --winsorize-image-intensities [0.005,0.995] "
+                "--initial-moving-transform [{input.ref},{input.flo},1] "
+                "--transform Rigid[0.1] --metric MI[{input.ref},{input.flo},1,32,Regular,0.25] "
+                "--convergence [1000x500x250x100,1e-6,10] "
+                "--shrink-factors 8x4x2x1 --smoothing-sigmas 3x2x1x0vox &&"
+                "ConvertTransformFile 3 {params.xfm_ras_prefix}0GenericAffine.mat {params.xfm_ras_prefix}xfm.txt --hm --ras&&"
+                'greedy -d 3 -threads 4 -rf {input.ref} -rm {input.flo} {output.warped_subj} -r {params.xfm_ras_prefix}xfm.txt&&'
+                '{params.c3d_affine_tool} {params.xfm_ras_prefix}xfm.txt -inv -o {output.xfm_ras}'
+    
     rule apply_noninterp_transform_noncontrast:
         input:
             xfm=bids(root=join(config['out_dir'],'derivatives', 'atlasreg'),subject=subject_id,suffix='xfm.txt',from_='noncontrast',to='contrast',desc='rigid',type_='ras'),

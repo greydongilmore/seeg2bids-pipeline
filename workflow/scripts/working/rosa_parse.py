@@ -124,7 +124,7 @@ def spm_affine(in_file):
 		The affine transformation matrix.
 	"""
 	img = nb.load(in_file)
-	affine = img.affine
+	affine = img.affine.copy()
 	rotation = affine[:3, :3]
 	chol = np.linalg.cholesky(rotation.T.dot(rotation))
 	zooms = np.diag(chol).copy()
@@ -133,134 +133,126 @@ def spm_affine(in_file):
 	affine[:3, 3] = affine[:3, 3] - zooms * np.ones((3, ))
 	return affine
 
-def rotation_matrix(pitch, roll, yaw):
+def rotation_matrix(alpha_x, alpha_y, alpha_z):
 	#pitch, roll, yaw = np.array([pitch, roll, yaw]) * np.pi / 180
-	matrix_roll = np.array([
+	rotate_x = np.array([
 		[1, 0, 0, 0],
-		[0, np.cos(pitch), -np.sin(pitch), 0],
-		[0, np.sin(pitch), np.cos(pitch), 0],
+		[0, np.cos(alpha_x), -np.sin(alpha_x), 0],
+		[0, np.sin(alpha_x), np.cos(alpha_x), 0],
 		[0, 0, 0,1]
 	])
-	matrix_pitch = np.array([
-		[np.cos(roll), 0, np.sin(roll), 0],
+	rotate_y = np.array([
+		[np.cos(alpha_y), 0, np.sin(alpha_y), 0],
 		[0, 1, 0, 0],
-		[-np.sin(roll), 0, np.cos(roll), 0],
+		[-np.sin(alpha_y), 0, np.cos(alpha_y), 0],
 		[0, 0, 0,1]
 	])
-	matrix_yaw = np.array([
-		[np.cos(yaw), -np.sin(yaw), 0, 0],
-		[np.sin(yaw), np.cos(yaw), 0, 0],
+	rotate_z = np.array([
+		[np.cos(alpha_z), -np.sin(alpha_z), 0, 0],
+		[np.sin(alpha_z), np.cos(alpha_z), 0, 0],
 		[0, 0, 1, 0],
 		[0, 0, 0,1]
 	])
-	return matrix_yaw @ matrix_pitch @ matrix_roll
+	return rotate_z @ rotate_y @ rotate_x
 
+def rotation3d(x=0, y=0, z=0):
+	cos_x = np.cos(x);cos_y = np.cos(y);cos_z = np.cos(z)
+	sin_x = np.sin(x);sin_y = np.sin(y);sin_z = np.sin(z)
+	r = np.array(
+		[
+			[cos_y * cos_z, -cos_x * sin_z + sin_x * sin_y * cos_z, sin_x * sin_z + cos_x * sin_y * cos_z, 0],
+			[cos_y * sin_z, cos_x * cos_z + sin_x * sin_y * sin_z, -sin_x * cos_z + cos_x * sin_y * sin_z, 0],
+			[-sin_y, sin_x * cos_y, cos_x * cos_y, 0],
+			[0, 0, 0,1]
+		],dtype=float,
+	)
+	return r
 
 #%%
 
 
 ros_file_path=r'/home/greydon/Documents/data/SEEG_peds/derivatives/seeg_scenes/'
 
-isub='sub-P027'
+isub='sub-P028'
 
+#rot2ras=rotation3d(np.deg2rad(0),np.deg2rad(0),np.deg2rad(180))
 rot2ras=rotation_matrix(np.deg2rad(0),np.deg2rad(0),np.deg2rad(180))
 
 
-nii_fname=glob.glob(f"{ros_file_path}/{isub}/*-contrast*_T1w.nii.gz")
-ros_fname=glob.glob(f"{ros_file_path}/{isub}/*.ros")
+nii_fname=glob.glob(os.path.join(ros_file_path, isub,'*ses-peri*_ct.nii.gz'))
+ros_fname=glob.glob(os.path.join(ros_file_path, isub,'*.ros'))
 out_tfm=os.path.join(ros_file_path,isub,f'{isub}_from-subject_to-world_planned.tfm')
 out_inv_tfm=os.path.join(ros_file_path,isub,f'{isub}_from-world_to-subject_planned.tfm')
 out_dir=os.path.join(ros_file_path, isub,'RAS_data_python')
-
+out_fcsv=os.path.join(ros_file_path,isub,f'{isub}_planned.fcsv')
 
 
 if nii_fname and ros_fname:
 	lps2ras=np.diag([-1, -1, 1, 1])
 	ras2lps=np.diag([-1, -1, 1, 1])
 	
-	nii_outdir=os.path.join(out_dir,os.path.basename(nii_fname[0]).split('.nii')[0])
-	if not os.path.exists(nii_outdir):
-		os.makedirs(nii_outdir)
-	
 	#parse ROS file
 	rosa_parsed=parseROSAfile(ros_fname[0])
 	
 	#centering transform
 	orig_nifti=nb.load(nii_fname[0])
-	orig_affine=orig_nifti.affine
-	center_coordinates=np.array([x/ 2 for x in orig_nifti.header["dim"][1:4]])
+	orig_affine=orig_nifti.affine.copy()
+	center_coordinates=np.array([x/ 2 for x in orig_nifti.header["dim"][1:4]-1])
+	homogeneous_coord = np.concatenate((center_coordinates, np.array([1])), axis=0)
+	centering_transform_raw=np.c_[np.vstack([np.eye(3),np.zeros(3)]), np.round(np.dot(orig_affine,homogeneous_coord),3)]
+	centering_transform=np.linalg.inv(np.dot(ras2lps,np.dot(np.linalg.inv(centering_transform_raw),lps2ras)))
+	t_out=rot2ras@rosa_parsed['volumes'][0]['TRdicomRdisplay']@centering_transform_raw
 	
-	orig_affine[0,-1]=orig_nifti.header["pixdim"][1]*center_coordinates[0]*-1
-	orig_affine[1,-1]=orig_nifti.header["pixdim"][2]*center_coordinates[1]*-1
-	orig_affine[2,-1]=orig_nifti.header["pixdim"][3]*center_coordinates[2]*-1
-	orig_nifti.set_sform(orig_affine,1)
-	nb.save(orig_nifti, os.path.join(nii_outdir, f"orig_{os.path.basename(nii_fname[0])}"))
-	
-	M=np.vstack([
-		orig_nifti.header["srow_x"],orig_nifti.header["srow_y"],orig_nifti.header["srow_z"],np.array([0,0,0,1])
-	])
-	
-	t_out=rot2ras@rosa_parsed['volumes'][0]['TRdicomRdisplay']@M
-	
-	orig_nifti.set_sform(t_out,1)
-	nb.save(orig_nifti, os.path.join(nii_outdir, os.path.basename(nii_fname[0])))
-	os.remove( os.path.join(nii_outdir, f"orig_{os.path.basename(nii_fname[0])}"))
-	
-	MM=spm_affine(os.path.join(nii_outdir, os.path.basename(nii_fname[0])))
-	#homogeneous_coord = np.concatenate((center_coordinates, np.array([1])), axis=0)
-	#centering_transform_raw=np.c_[np.vstack([np.eye(3),np.zeros(3)]), np.round(np.dot(orig_affine,homogeneous_coord),3)]
-	
-# 	if not np.array_equal(rosa_parsed['ac'], rosa_parsed['pc']):
-# 		rosa_parsed['ac'] = (centering_transform_raw @ np.hstack([rosa_parsed['ac'],1]))[:3]
-# 		rosa_parsed['pc'] = (centering_transform_raw @ np.hstack([rosa_parsed['pc'],1]))[:3]
+# 	orig_affine[0,-1]=orig_nifti.header["pixdim"][1]*center_coordinates[0]*-1
+# 	orig_affine[1,-1]=orig_nifti.header["pixdim"][2]*center_coordinates[1]*-1
+# 	orig_affine[2,-1]=orig_nifti.header["pixdim"][3]*center_coordinates[2]*-1
+# 	orig_nifti.set_sform(orig_affine,1)
+# 	nb.save(orig_nifti, os.path.join(nii_outdir, f"orig_{os.path.basename(nii_fname[0])}"))
 # 	
-	
+# 	M=np.vstack([
+# 		orig_nifti.header["srow_x"],orig_nifti.header["srow_y"],orig_nifti.header["srow_z"],np.array([0,0,0,1])
+# 	])
+# 	
+# 	t_out=rot2ras@rosa_parsed['volumes'][0]['TRdicomRdisplay']@M
+# 	
+# 	orig_nifti.set_sform(t_out,1)
+# 	nb.save(orig_nifti, os.path.join(nii_outdir, os.path.basename(nii_fname[0])))
+# 	os.remove( os.path.join(nii_outdir, f"orig_{os.path.basename(nii_fname[0])}"))
+# 	
+# 	MM=spm_affine(os.path.join(nii_outdir, os.path.basename(nii_fname[0])))
+# 	
 	#store two transforms to file, to-world and to-t1w
-	for itype,ifcsv in zip(['t1w'],[out_tfm]):
-		if itype=='t1w':
-			out_fcsv=os.path.join(nii_outdir,f'{isub}_planned.fcsv')
-			centering_transform=np.linalg.inv(np.dot(ras2lps,np.dot(np.linalg.inv(t_out),lps2ras)))
-			coordsys='0'
-		else:
-			out_fcsv=os.path.join(nii_outdir,f'{isub}_space-world_planned.fcsv')
-			centering_transform=np.dot(ras2lps,np.dot(np.linalg.inv(t_out),lps2ras))
-			coordsys='0'
+	#centering_transform=np.linalg.inv(np.dot(ras2lps,np.dot(np.linalg.inv(t_out),lps2ras)))
+	Parameters = " ".join([str(x) for x in np.concatenate((t_out[0:3,0:3].reshape(9), t_out[0:3,3]))])
+	
+	with open(out_tfm, 'w') as fid:
+		fid.write("#Insight Transform File V1.0\n")
+		fid.write("#Transform 0\n")
+		fid.write("Transform: AffineTransform_double_3_3\n")
+		fid.write("Parameters: " + Parameters + "\n")
+		fid.write("FixedParameters: 0 0 0\n")
+	
+	coords=[]
+	descs=[]
+	for idx,traj in enumerate(rosa_parsed['trajectories']):
+		vecT = np.hstack([traj['target'],1])*np.array([-1,-1,1,1])
+		vecE = np.hstack([traj['entry'],1])*np.array([-1,-1,1,1])
 		
-		Parameters = " ".join([str(x) for x in np.concatenate((centering_transform[0:3,0:3].reshape(9), centering_transform[0:3,3]))])
+		tvecT = centering_transform_raw@  (vecT.T)
+		tvecE = centering_transform_raw@ (vecE.T)
+		coordsys='0'
 		
-		with open(ifcsv, 'w') as fid:
-			fid.write("#Insight Transform File V1.0\n")
-			fid.write("#Transform 0\n")
-			fid.write("Transform: AffineTransform_double_3_3\n")
-			fid.write("Parameters: " + Parameters + "\n")
-			fid.write("FixedParameters: 0 0 0\n")
+		traj['target_t']=np.round(tvecT,3).tolist()[:3]
+		coords.append(traj['target_t'])
+		descs.append(traj['name'])
 		
-		coords=[]
-		descs=[]
-		for idx,traj in enumerate(rosa_parsed['trajectories']):
-			vecT = np.hstack([traj['target'],1])*np.array([-1,-1,1,1])
-			vecE = np.hstack([traj['entry'],1])*np.array([-1,-1,1,1])
-			
-			if itype == 'world':
-				tvecT = vecT.T
-				tvecE = vecE.T
-				coordsys='0'
-			else:
-				tvecT = (t_out @ (np.linalg.inv(t_out) @ (vecT.T)))
-				tvecE = (t_out @ (np.linalg.inv(t_out) @ (vecE.T)))
-				coordsys='0'
-			
-			traj['target_t']=np.round(tvecT,3).tolist()[:3]
-			coords.append(traj['target_t'])
-			descs.append(traj['name'])
-			
-			traj['entry_t']=np.round(tvecE,3).tolist()[:3]
-			coords.append(traj['entry_t'])
-			descs.append(traj['name'])
-			
-			rosa_parsed['trajectories'][idx]=traj
+		traj['entry_t']=np.round(tvecE,3).tolist()[:3]
+		coords.append(traj['entry_t'])
+		descs.append(traj['name'])
 		
-		writeFCSV(coords,[],descs,output_fcsv=out_fcsv,coordsys=coordsys)
+		rosa_parsed['trajectories'][idx]=traj
+	
+	writeFCSV(coords,[],descs,output_fcsv=out_fcsv,coordsys=coordsys)
 	
 	print(f"Done {isub}")
 	

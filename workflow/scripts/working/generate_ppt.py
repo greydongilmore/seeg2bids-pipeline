@@ -2,10 +2,7 @@
 # -*- coding: utf-8 -*-
 import os
 import glob
-from pptx import Presentation
-from pptx.util import Inches, Pt
-from pptx.dml.color import RGBColor
-from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+
 import pandas as pd
 from pptx.enum.text import MSO_AUTO_SIZE
 import numpy as np
