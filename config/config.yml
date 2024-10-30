@@ -19,13 +19,13 @@ segmentation:
 visqc:
     run: True
 fastsurfer:
-    run: False
+    run: True
 hippunfold:
     run: False
 
 fastsurfer_vol:
-    ses: 'post'
-    acq: 'ablation'           #use 'null' to ignore key
+    ses: 'pre'
+    acq: null           #use 'null' to ignore key
     desc: null          #use 'null' to ignore key
     run: '01'
     suffix: 'T1w'
@@ -86,7 +86,7 @@ other_vol2:
     algo: ants
 
 seeg_contacts:
-    present: False
+    present: True
     space_coords: &space_coords derivatives/seeg_coordinates/sub-{subject}/sub-{subject}_space-{coords_space}_{coords_type}.fcsv
     scene_coords: &scene_coords derivatives/slicer_scene/sub-{subject}/sub-{subject}_{coords_type}.fcsv
 
