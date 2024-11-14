@@ -1,11 +1,13 @@
 import numpy as np
 import nibabel as nib
 import json
+import os
 
 #load up tissue probability, warped from template
 tissue_prob_vol = dict()
 
-for label,nii in zip(snakemake.config['tissue_labels'], snakemake.input.tissue_priors):
+for nii in snakemake.input.tissue_priors:
+	label=[x for x in os.path.basename(nii).split('_') if 'label' in x][0].split('-')[-1]
 	tissue_prob_vol[label] = nib.load(nii).get_fdata()
 	
 

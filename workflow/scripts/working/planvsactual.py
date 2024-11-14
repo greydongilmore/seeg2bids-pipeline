@@ -282,9 +282,9 @@ if debug:
 		def __init__(self, **kwargs):
 			self.__dict__.update(kwargs)
 	
-	isub='sub-P159'
+	isub='sub-EMOP0471'
 #	data_dir=r'/media/greydon/lhsc_data/SEEG_rerun/derivatives/seeg_scenes'
-	data_dir=r'/home/greydon/Documents/data/SEEG/derivatives/slicer_scene'
+	data_dir=r'/home/greydon/Documents/data/emory/derivatives/slicer_scene'
 	
 	input=dotdict({
 				'isub': isub,
@@ -447,13 +447,13 @@ for igroup in label_set:
 		  file_data['planned'].loc[planned_idx,['x','y','z']].values[1])
 		plannedTipOffset=file_data['planned'].loc[planned_idx,['x','y','z']].values[1]-(norm*(mag-1))
 		
-		elec_temp['plannedOffsetX']=plannedTipOffset[0]
-		elec_temp['plannedOffsetY']=plannedTipOffset[1]
-		elec_temp['plannedOffsetZ']=plannedTipOffset[2]
+		#elec_temp['plannedOffsetX']=plannedTipOffset[0]
+		#elec_temp['plannedOffsetY']=plannedTipOffset[1]
+		#elec_temp['plannedOffsetZ']=plannedTipOffset[2]
 		
-# 		elec_temp['plannedOffsetX']=elec_temp['plannedTipX']
-# 		elec_temp['plannedOffsetY']=elec_temp['plannedTipY']
-# 		elec_temp['plannedOffsetZ']=elec_temp['plannedTipZ']
+		elec_temp['plannedOffsetX']=elec_temp['plannedTipX']
+		elec_temp['plannedOffsetY']=elec_temp['plannedTipY']
+		elec_temp['plannedOffsetZ']=elec_temp['plannedTipZ']
 		
 		xyz_planned_entry = np.array([elec_temp['plannedEntryX'], elec_temp['plannedEntryY'], elec_temp['plannedEntryZ']])
 		xyz_actual_entry = np.array([elec_temp['actualEntryX'], elec_temp['actualEntryY'], elec_temp['actualEntryZ']]).T

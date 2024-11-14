@@ -2,20 +2,20 @@
 #--- filepaths
 #
 
-bids_dir: /home/greydon/Documents/data/mayo
+bids_dir: /home/greydon/Documents/data/emory
 
 #work computer
 #bids_dir: /home/greydon/Documents/data/cingulate_seizures
 
 #external drive
-#bids_dir: /media/greydon/lhsc_data/datasets/SEEG
+#bids_dir: /media/greydon/lhsc_data/datasets/SEEG_before_robot
 
 subject_prefix: 'P'
 
 registration:
     run: True
 segmentation:
-    run: True
+    run: False
 visqc:
     run: True
 fastsurfer:
@@ -38,7 +38,7 @@ contrast_t1:
     present: True
 
 noncontrast_t1:
-    present: False
+    present: True
     session: 'pre'
     datatype: 'anat'
     acq: null
@@ -46,7 +46,7 @@ noncontrast_t1:
     suffix: 'T1w'
     ext: '.nii.gz'
     position: 0
-    algo: greedy
+    algo: ants
 
 post_image:
     present: True
@@ -63,25 +63,25 @@ pet:
     present: False
     position: -1
     task: rest
-    algo: greedy
+    algo: ants
 
 other_vol:
     present: False
-    session: 'post'
-    datatype: 'anat'
-    acq: 'ablation'
+    session: 'pre'
+    datatype: 'ct'
+    acq: null
     run: '01'
-    suffix: 'T1w'
+    suffix: 'ct'
     ext: '.nii.gz'
     algo: ants
 
 other_vol2:
     present: False
     session: 'pre'
-    datatype: 'anat'
-    acq: 'Tra'
+    datatype: 'pet'
+    acq: 'ac'
     run: '01'
-    suffix: 'T2w'
+    suffix: 'pet'
     ext: '.nii.gz'
     algo: ants
 
@@ -140,15 +140,6 @@ default_k_tissue_classes: 3 #higher than 3 to capture contrast-enhanced regions 
 atropos_smoothing_factor: '[0.2,1x1x1]'
 convergence: '[3,0]'
 
-#use this to specify custom values for subjects, e.g. here sub-P001 will have k=4 tissue classes for Atropos initialization
-subject_k_tissue_classes: []
-#    012: 4
-#    039: 4
-#    047: 4
-#    050: 4
-#    058: 4
-#    061: 3
-
 tissue_labels:
     - GM
     - WM
@@ -198,7 +189,9 @@ adult_template:
         orien: 'ras'
         t1w: resources/tpl-MNI152NLin2009cSym/tpl-MNI152NLin2009cSym_res-1_T1w.nii.gz
         mask: resources/tpl-MNI152NLin2009cSym/tpl-MNI152NLin2009cSym_res-1_desc-brain_mask.nii.gz
-        tissue_probseg: resources/tpl-MNI152NLin2009cSym/tpl-MNI152NLin2009cSym_res-1_label-{tissue}_probseg.nii.gz
+        tissue_probseg_wm: resources/tpl-MNI152NLin2009cSym/tpl-MNI152NLin2009cSym_res-1_label-WM_probseg.nii.gz
+        tissue_probseg_gm: resources/tpl-MNI152NLin2009cSym/tpl-MNI152NLin2009cSym_res-1_label-GM_probseg.nii.gz
+        tissue_probseg_csf: resources/tpl-MNI152NLin2009cSym/tpl-MNI152NLin2009cSym_res-1_label-CSF_probseg.nii.gz
         atlas_dseg_nii: resources/tpl-MNI152NLin2009cSym/tpl-MNI152NLin2009cSym_res-1_atlas-{atlas}_dseg.nii.gz
         atlas_dseg_tsv: resources/tpl-MNI152NLin2009cSym/tpl-MNI152NLin2009cSym_atlas-{atlas}_dseg.tsv
     MNI152NLin2009aAsym:
@@ -208,7 +201,9 @@ adult_template:
         orien: 'ras'
         t1w: resources/tpl-MNI152NLin2009aAsym/tpl-MNI152NLin2009aAsym_res-1_T1w.nii.gz
         mask: resources/tpl-MNI152NLin2009aAsym/tpl-MNI152NLin2009aAsym_res-1_desc-brain_mask.nii.gz
-        tissue_probseg: resources/tpl-MNI152NLin2009aAsym/tpl-MNI152NLin2009aAsym_res-1_label-{tissue}_probseg.nii.gz
+        tissue_probseg_wm: resources/tpl-MNI152NLin2009aAsym/tpl-MNI152NLin2009aAsym_res-1_label-WM_probseg.nii.gz
+        tissue_probseg_gm: resources/tpl-MNI152NLin2009aAsym/tpl-MNI152NLin2009aAsym_res-1_label-GM_probseg.nii.gz
+        tissue_probseg_csf: resources/tpl-MNI152NLin2009aAsym/tpl-MNI152NLin2009aAsym_res-1_label-CSF_probseg.nii.gz
         atlas_dseg_nii: resources/tpl-MNI152NLin2009aAsym/tpl-MNI152NLin2009aAsym_res-1_atlas-{atlas}_dseg.nii.gz
         atlas_dseg_tsv: resources/tpl-MNI152NLin2009aAsym/tpl-MNI152NLin2009aAsym_res-1_atlas-{atlas}_dseg.tsv
 
@@ -269,6 +264,8 @@ ants:
 ext_libs:
     c3d_affine_tool: resources/c3d-1.4.0/bin/c3d_affine_tool
     c3d: resources/c3d-1.4.0/bin/c3d
+    fslmerge: resources/fsl/fslmerge.glnxa64
+    fslmaths: resources/fsl/fslmaths.glnxa64
 singularity:
     neuroglia-core: "docker://khanlab/neuroglia-core:latest"
     fastsurfer: "docker://deepmi/fastsurfer:latest"

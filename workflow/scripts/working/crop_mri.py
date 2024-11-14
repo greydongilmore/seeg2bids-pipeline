@@ -29,7 +29,7 @@ if debug:
 		def __init__(self, **kwargs):
 			self.__dict__.update(kwargs)
 
-	isub = 'sub-P159'
+	isub = 'sub-P161'
 	if sys.platform =='linux':
 		data_dir = os.path.join('/home','greydon','Documents','data','SEEG','derivatives')
 	elif sys.platform =='linux':

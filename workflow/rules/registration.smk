@@ -650,19 +650,24 @@ rule warp_brainmask_from_template_affine:
 
 rule warp_tissue_probseg_from_template_affine:
     input: 
-        probseg = get_age_appropriate_template_name(expand(subject_id,subject=subjects),'tissue_probseg'),
+        probseg_wm = get_age_appropriate_template_name(expand(subject_id,subject=subjects),'tissue_probseg_wm'),
+        probseg_gm = get_age_appropriate_template_name(expand(subject_id,subject=subjects),'tissue_probseg_gm'),
+        probseg_csf = get_age_appropriate_template_name(expand(subject_id,subject=subjects),'tissue_probseg_csf'),
         ref = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='T1w.nii.gz'),
         xfm = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='xfm.txt',from_='subject',to=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='affine',type_='itk'),
     output:
-        probseg = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='probseg.nii.gz',label='{tissue}',from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='affine'),
+        probseg_wm = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='probseg.nii.gz',label='WM',from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='affine'),
+        probseg_gm = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='probseg.nii.gz',label='GM',from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='affine'),
+        probseg_csf = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='probseg.nii.gz',label='CSF',from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='affine'),
     #container: config['singularity']['neuroglia']
     group: 'preproc'
     resources:
         mem_mb = 16000
     shell: 
-        'ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={threads} '
-        'antsApplyTransforms -d 3 --interpolation Linear -i {input.probseg} -o {output.probseg} -r {input.ref} '
-            ' -t [{input.xfm},0]' #use inverse xfm (going from template to subject)
+        'ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={threads}&&'
+        'antsApplyTransforms -d 3 --interpolation Linear -i {input.probseg_wm} -o {output.probseg_wm} -r {input.ref} -t [{input.xfm},0]&&'
+        'antsApplyTransforms -d 3 --interpolation Linear -i {input.probseg_gm} -o {output.probseg_gm} -r {input.ref} -t [{input.xfm},0]&&'
+        'antsApplyTransforms -d 3 --interpolation Linear -i {input.probseg_csf} -o {output.probseg_csf} -r {input.ref} -t [{input.xfm},0]'
 
 rule n4biasfield:
     input: 
@@ -680,36 +685,42 @@ rule mask_template_t1w:
     input:
         t1 = get_age_appropriate_template_name(expand(subject_id,subject=subjects),'t1w'),
         mask = get_age_appropriate_template_name(expand(subject_id,subject=subjects),'mask'),
+    params:
+        fslmaths=config['ext_libs']['fslmaths'],
     output:
         t1 = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg','sub-'+subject_id),prefix=f"tpl-{get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space')}",desc='masked',suffix='T1w.nii.gz')
     #container: config['singularity']['neuroglia']
     group: 'preproc'
     shell:
-        'fslmaths {input.t1} -mas {input.mask} {output}'
+        '{params.fslmaths} {input.t1} -mas {input.mask} {output}'
 
 if config['segmentation']['run']:
     rule mask_subject_t1w:
         input:
             t1 = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,desc='n4', suffix='T1w.nii.gz'),
             mask = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='mask.nii.gz',from_='atropos3seg',desc='brain')
+        params:
+            fslmaths=config['ext_libs']['fslmaths'],
         output:
             t1 = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='T1w.nii.gz',from_='atropos3seg',desc='masked'),
         #container: config['singularity']['neuroglia']
         group: 'preproc'
         shell:
-            'fslmaths {input.t1} -mas {input.mask} {output}'
+            '{params.fslmaths} {input.t1} -mas {input.mask} {output}'
 
     if config['post_image']['present']:
         rule mask_subject_ct:
             input:
                 ct = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,desc='rigid',space='T1w', suffix=config['post_image']['suffix']+config['post_image']['ext']),
                 mask = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='mask.nii.gz',from_='atropos3seg',desc='brain')
+            params:
+                fslmaths=config['ext_libs']['fslmaths'],
             output:
                 ct = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix=config['post_image']['suffix']+config['post_image']['ext'],from_='atropos3seg',desc='masked'),
             #container: config['singularity']['neuroglia']
             group: 'preproc'
             shell:
-                'fslmaths {input.ct} -mas {input.mask} {output.ct}'
+                '{params.fslmaths} {input.ct} -mas {input.mask} {output.ct}'
 
     if  config['template_reg']['nlin_reg']['algo']=='ants':
         rule warp_nonlin:
@@ -787,19 +798,24 @@ if config['segmentation']['run']:
 
         rule warp_tissue_probseg_from_template:
             input: 
-                probseg = get_age_appropriate_template_name(expand(subject_id,subject=subjects),'tissue_probseg'),
+                probseg_wm = get_age_appropriate_template_name(expand(subject_id,subject=subjects),'tissue_probseg_wm'),
+                probseg_gm = get_age_appropriate_template_name(expand(subject_id,subject=subjects),'tissue_probseg_gm'),
+                probseg_csf = get_age_appropriate_template_name(expand(subject_id,subject=subjects),'tissue_probseg_csf'),
                 ref = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='T1w.nii.gz'),
                 inv_composite = rules.warp_nonlin.output.out_inv_composite
             output:
-                probseg = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='probseg.nii.gz',label='{tissue}',from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='nonlin'),
+                probseg_wm = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='probseg.nii.gz',label='WM',from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='nonlin'),
+                probseg_gm = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='probseg.nii.gz',label='GM',from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='nonlin'),
+                probseg_csf = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='probseg.nii.gz',label='CSF',from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='nonlin'),
             #container: config['singularity']['neuroglia']
             group: 'preproc'
             resources:
                 mem_mb = 16000
             shell: 
                 'ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS={threads} '
-                'antsApplyTransforms -d 3 --interpolation Linear -i {input.probseg} -o {output.probseg} -r {input.ref} '
-                    ' -t {input.inv_composite} ' #use inverse xfm (going from template to subject)
+                'antsApplyTransforms -d 3 --interpolation Linear -i {input.probseg_wm} -o {output.probseg_wm} -r {input.ref} -t {input.inv_composite}&&'
+                'antsApplyTransforms -d 3 --interpolation Linear -i {input.probseg_gm} -o {output.probseg_gm} -r {input.ref} -t {input.inv_composite}&&'
+                'antsApplyTransforms -d 3 --interpolation Linear -i {input.probseg_csf} -o {output.probseg_csf} -r {input.ref} -t {input.inv_composite}'
 
         rule warp_brainmask_from_template:
             input: 
@@ -870,18 +886,24 @@ if config['segmentation']['run']:
         
         rule warp_tissue_probseg_from_template:
             input: 
-                probseg = get_age_appropriate_template_name(expand(subject_id,subject=subjects),'tissue_probseg'),
+                probseg_wm = get_age_appropriate_template_name(expand(subject_id,subject=subjects),'tissue_probseg_wm'),
+                probseg_gm = get_age_appropriate_template_name(expand(subject_id,subject=subjects),'tissue_probseg_gm'),
+                probseg_csf = get_age_appropriate_template_name(expand(subject_id,subject=subjects),'tissue_probseg_csf'),
                 ref = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='T1w.nii.gz',from_='atropos3seg',desc='masked'),
                 inv_composite = rules.warp_nonlin.output.out_inv_warp,
                 init_xfm = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='xfm.txt',from_='subject',to=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='affine',type_='ras'),
             output:
-                probseg = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='probseg.nii.gz',label='{tissue}',from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='nonlin'),
+                probseg_wm = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='probseg.nii.gz',label='WM',from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='nonlin'),
+                probseg_gm = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='probseg.nii.gz',label='GM',from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='nonlin'),
+                probseg_csf = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='probseg.nii.gz',label='CSF',from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='nonlin'),
             #container: config['singularity']['neuroglia']
             group: 'preproc'
             resources:
                 mem_mb = 16000
             shell: 
-                'greedy -d 3 -threads 4 -rf {input.ref} -rm {input.probseg} {output.probseg} -r {input.init_xfm},-1 {input.inv_composite}'
+                'greedy -d 3 -threads 4 -rf {input.ref} -rm {input.probseg_wm} {output.probseg_wm} -r {input.init_xfm},-1 {input.inv_composite}&&'
+                'greedy -d 3 -threads 4 -rf {input.ref} -rm {input.probseg_gm} {output.probseg_gm} -r {input.init_xfm},-1 {input.inv_composite}&&'
+                'greedy -d 3 -threads 4 -rf {input.ref} -rm {input.probseg_csf} {output.probseg_csf} -r {input.init_xfm},-1 {input.inv_composite}'
 
         rule warp_brainmask_from_template:
             input: 
@@ -901,24 +923,27 @@ if config['segmentation']['run']:
     rule dilate_brainmask:
         input:
             mask = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='mask.nii.gz',from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='affine',label='brain'),
+        params:
+            fslmaths=config['ext_libs']['fslmaths'],
         output:
             mask = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='mask.nii.gz',from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='affine',label='braindilated'),
         #container: config['singularity']['neuroglia']
         group: 'preproc'
         shell:
-            'fslmaths {input} -dilD {output}'
+            '{params.fslmaths} {input} -dilD {output}'
 
     #dilate labels N times to provide more of a fudge factor when assigning GM labels
     rule dilate_atlas_labels:
         input:
             dseg = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='dseg.nii.gz',atlas='{atlas}',from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='nonlin'),
         params:
-            dil_opt =  ' '.join([ '-dilD' for i in range(config['n_atlas_dilate'])])
+            dil_opt =  ' '.join([ '-dilD' for i in range(config['n_atlas_dilate'])]),
+            fslmaths=config['ext_libs']['fslmaths'],
         output:
             dseg = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='dseg.nii.gz',atlas='{atlas}',from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='nonlin',label='dilated'),
         #container: config['singularity']['neuroglia']
         group: 'preproc'
         shell:
-            'fslmaths {input} {params.dil_opt} {output}'
+            '{params.fslmaths} {input} {params.dil_opt} {output}'
 
     final_outputs.extend(expand(bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='T1w.nii.gz',space=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='nonlin',label='brain'),subject=subjects))

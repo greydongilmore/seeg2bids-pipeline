@@ -1,10 +1,7 @@
 
 
 def get_k_tissue_classes(wildcards):
-    if wildcards.subject in config['subject_k_tissue_classes']:
-        k_classes=config['subject_k_tissue_classes'][wildcards.subject]
-    else:
-        k_classes=config['default_k_tissue_classes']
+    k_classes=config['default_k_tissue_classes']
     return k_classes
 
 
@@ -14,11 +11,12 @@ rule tissue_seg_kmeans_init:
         t1 = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'), subject=subject_id,desc='n4', suffix='T1w.nii.gz'),
         mask = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='mask.nii.gz',from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='affine',label='brain'),
     params:
-        k = get_k_tissue_classes,
+        k = config['default_k_tissue_classes'],
         m = config['atropos_smoothing_factor'],
         c = config['convergence'],
         posterior_fmt = 'posteriors_%d.nii.gz',
         posterior_glob = 'posteriors_*.nii.gz',
+        fslmerge=config['ext_libs']['fslmerge'],
     output:
         seg = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='dseg.nii.gz',desc='atroposKseg'),
         posteriors = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='probseg.nii.gz',desc='atroposKseg'),
@@ -27,9 +25,9 @@ rule tissue_seg_kmeans_init:
     group: 'preproc'
     threads: 6
     shell:
-        #'Atropos -d 3 -a {input.t1} -i KMeans[{params.k}] -m {params.m} -c {params.c} -x {input.mask} -o [{output.seg},{params.posterior_fmt}] && '
+        #'Atropos -d 3 -a {input.t1} -i kmeans[{params.k}] -m {params.m} -c {params.c} -x {input.mask} -o [{output.seg},{params.posterior_fmt}] && '
         'Atropos -d 3 -a {input.t1} -i KMeans[{params.k}] -x {input.mask} -o [{output.seg},{params.posterior_fmt}] && '
-        'fslmerge -t {output.posteriors} {params.posterior_glob} ' #merge posteriors into a 4d file (intermediate files will be removed b/c shadow)
+        '{params.fslmerge} -t {output.posteriors} {params.posterior_glob} ' #merge posteriors into a 4d file (intermediate files will be removed b/c shadow)
 
 rule map_channels_to_tissue:
     input:
@@ -47,25 +45,28 @@ rule tissue_seg_to_4d:
     input:
         tissue_segs = expand(bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='probseg.nii.gz',label='{tissue}',desc='atropos3seg'),
                             tissue=config['tissue_labels'],allow_missing=True),
+    params:
+        fslmerge=config['ext_libs']['fslmerge'],
     output:
         tissue_seg = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='probseg.nii.gz',desc='atropos3seg')
     group: 'preproc'
     #container: config['singularity']['neuroglia']
     shell:
-        'fslmerge -t {output} {input}'
+        '{params.fslmerge} -t {output} {input}'
 
 rule brainmask_from_tissue:
     input:
         tissue_seg = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='probseg.nii.gz',desc='atropos3seg')
     params:
-        threshold = 0.5
+        threshold = 0.5,
+        fslmaths=config['ext_libs']['fslmaths'],
     output:
         mask = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='mask.nii.gz',from_='atropos3seg',desc='brain')
     #container: config['singularity']['neuroglia']
     group: 'preproc'
     shell:
         #max over tissue probs, threshold, binarize, fill holes
-       'fslmaths {input} -Tmax -thr {params.threshold} -bin -fillh {output}'     
+       '{params.fslmaths} {input} -Tmax -thr {params.threshold} -bin -fillh {output}'     
 
 rule tissue_warp_to_nrrd:
     input:

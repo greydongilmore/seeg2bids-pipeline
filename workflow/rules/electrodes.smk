@@ -12,30 +12,31 @@ rule electrode_coords:
 final_outputs.extend(expand(f'{sep}'.join([config['out_dir'], config['seeg_contacts']['space_coords'].format(subject=subject_id, coords_space='native', coords_type='SEEGA')]),
         subject=subjects))
 
-rule warp_contact_coords:
-    input: 
-        fcsv = get_electrodes_coords(subject_id,coords_space='native', coords_type='SEEGA'),
-        xfm_composite = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='InverseComposite.h5',from_='subject',to=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space')),
-    output:
-        fcsv_fname_warped = f'{sep}'.join([config['out_dir'], config['seeg_contacts']['space_coords'].format(subject=subject_id, coords_space=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'), coords_type='SEEGA')])
-    group: 'preproc'
-    script: '../scripts/working/apply_warp_to_points.py'
+if config['segmentation']['run']:
+    rule warp_contact_coords:
+        input: 
+            fcsv = get_electrodes_coords(subject_id,coords_space='native', coords_type='SEEGA'),
+            xfm_composite = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='InverseComposite.h5',from_='subject',to=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space')),
+        output:
+            fcsv_fname_warped = f'{sep}'.join([config['out_dir'], config['seeg_contacts']['space_coords'].format(subject=subject_id, coords_space=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'), coords_type='SEEGA')])
+        group: 'preproc'
+        script: '../scripts/working/apply_warp_to_points.py'
 
-rule label_electrodes_atlas:
-    input: 
-        fcsv = get_electrodes_coords(subject_id,coords_space='native', coords_type='SEEGA'),
-        dseg_tsv = get_age_appropriate_template_name(expand(subject_id,subject=subjects),'atlas_dseg_tsv'),
-        dseg_nii = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='dseg.nii.gz', atlas='{atlas}',from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='nonlin',label='dilated'),
-        tissue_seg = expand(bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='probseg.nii.gz',label='{tissue}',desc='atropos3seg'),
-                            tissue=config['tissue_labels'],allow_missing=True),
-    output:
-        tsv = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='electrodes.tsv',atlas='{atlas}', from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='nonlin'),
-#        tsv = report(bids(root='results',subject=subject_id,suffix='electrodes.tsv',desc='{atlas}',from_='{template}'),
-#                caption='../reports/electrodes_vis.rst',
-#                category='Electrodes Labelled',
-#                subcategory='Atlas: {atlas}, Template: {template}')           
-    group: 'preproc'
-    script: '../scripts/label_electrodes_atlas.py'
+    rule label_electrodes_atlas:
+        input: 
+            fcsv = get_electrodes_coords(subject_id,coords_space='native', coords_type='SEEGA'),
+            dseg_tsv = get_age_appropriate_template_name(expand(subject_id,subject=subjects),'atlas_dseg_tsv'),
+            dseg_nii = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='dseg.nii.gz', atlas='{atlas}',from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='nonlin',label='dilated'),
+            tissue_seg = expand(bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='probseg.nii.gz',label='{tissue}',desc='atropos3seg'),
+                                tissue=config['tissue_labels'],allow_missing=True),
+        output:
+            tsv = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='electrodes.tsv',atlas='{atlas}', from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='nonlin'),
+    #        tsv = report(bids(root='results',subject=subject_id,suffix='electrodes.tsv',desc='{atlas}',from_='{template}'),
+    #                caption='../reports/electrodes_vis.rst',
+    #                category='Electrodes Labelled',
+    #                subcategory='Atlas: {atlas}, Template: {template}')           
+        group: 'preproc'
+        script: '../scripts/label_electrodes_atlas.py'
 
 rule contact_landmarks:
     input: 
@@ -102,27 +103,27 @@ final_outputs.extend(expand(bids(root=join(config['out_dir'], 'derivatives', 'at
 final_outputs.extend(expand(bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),prefix='sub-'+subject_id+'/qc/sub-'+subject_id,suffix='contacts.html',desc='mask',space=config['post_image']['suffix'],include_subject_dir=False),
         subject=subjects))
 
-
-final_outputs.extend(
-    expand(
-        rules.warp_contact_coords.output.fcsv_fname_warped,
-        subject=subjects
+if config['segmentation']['run']:
+    final_outputs.extend(
+        expand(
+            rules.warp_contact_coords.output.fcsv_fname_warped,
+            subject=subjects
+        )
     )
-)
 
-final_outputs.extend(
-    expand(
-        bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),
-            subject=subject_id,
-            suffix='electrodes.tsv',
-            atlas='{atlas}',
-            from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),
-            desc='nonlin'
-        ),
-        subject=subjects,
-        atlas=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'atlas'),
-        template=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space')
+    final_outputs.extend(
+        expand(
+            bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),
+                subject=subject_id,
+                suffix='electrodes.tsv',
+                atlas='{atlas}',
+                from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),
+                desc='nonlin'
+            ),
+            subject=subjects,
+            atlas=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'atlas'),
+            template=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space')
+        )
     )
-)
 
 

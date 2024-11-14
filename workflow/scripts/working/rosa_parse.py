@@ -56,7 +56,9 @@ def getMeta(search_str, textfile):
 		for key,value in data.items():
 			temp=value.split('\n')[-1].strip()
 			if key.startswith('TR'):
-				temp=np.array([float(x) for x in temp.split(' ')]).reshape(4, 4)
+				temp=np.array([float(x) for x in temp.split(' ')])
+				if temp.shape[0]>1:
+					temp=temp.reshape(4, 4)
 			data[key]=temp
 		displays.append(data)
 	
@@ -171,28 +173,33 @@ def rotation3d(x=0, y=0, z=0):
 #%%
 
 
-ros_file_path=r'/home/greydon/Documents/data/SEEG_peds/derivatives/seeg_scenes/'
+ros_file_path=r'/home/greydon/Documents/data/emory/derivatives/slicer_scene/'
 
-isub='sub-P028'
+isub='sub-EMOP0241'
 
 #rot2ras=rotation3d(np.deg2rad(0),np.deg2rad(0),np.deg2rad(180))
 rot2ras=rotation_matrix(np.deg2rad(0),np.deg2rad(0),np.deg2rad(180))
 
 
-nii_fname=glob.glob(os.path.join(ros_file_path, isub,'*ses-peri*_ct.nii.gz'))
 ros_fname=glob.glob(os.path.join(ros_file_path, isub,'*.ros'))
 out_tfm=os.path.join(ros_file_path,isub,f'{isub}_from-subject_to-world_planned.tfm')
 out_inv_tfm=os.path.join(ros_file_path,isub,f'{isub}_from-world_to-subject_planned.tfm')
 out_dir=os.path.join(ros_file_path, isub,'RAS_data_python')
 out_fcsv=os.path.join(ros_file_path,isub,f'{isub}_planned.fcsv')
 
+if ros_fname:
+	#parse ROS file
+	rosa_parsed=parseROSAfile(ros_fname[0])
+
+if 'MR' in rosa_parsed['volumes'][0]['MODALITY']:
+	nii_fname=glob.glob(os.path.join(ros_file_path, isub,'*acq-contrast_T1w.nii.gz'))
+else:
+	nii_fname=glob.glob(os.path.join(ros_file_path, isub,'*ses-pre*_ct.nii.gz'))
+
 
 if nii_fname and ros_fname:
 	lps2ras=np.diag([-1, -1, 1, 1])
 	ras2lps=np.diag([-1, -1, 1, 1])
-	
-	#parse ROS file
-	rosa_parsed=parseROSAfile(ros_fname[0])
 	
 	#centering transform
 	orig_nifti=nb.load(nii_fname[0])
@@ -235,8 +242,11 @@ if nii_fname and ros_fname:
 	coords=[]
 	descs=[]
 	for idx,traj in enumerate(rosa_parsed['trajectories']):
-		vecT = np.hstack([traj['target'],1])*np.array([-1,-1,1,1])
-		vecE = np.hstack([traj['entry'],1])*np.array([-1,-1,1,1])
+		#vecT = np.hstack([traj['target'],1])*np.array([-1,-1,1,1])
+		#vecE = np.hstack([traj['entry'],1])*np.array([-1,-1,1,1])
+		
+		vecT = rot2ras@np.hstack([traj['target'],1])
+		vecE = rot2ras@np.hstack([traj['entry'],1])
 		
 		tvecT = centering_transform_raw@  (vecT.T)
 		tvecE = centering_transform_raw@ (vecE.T)
