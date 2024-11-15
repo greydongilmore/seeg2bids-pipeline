@@ -31,7 +31,6 @@ elif sys.platform=='win32':
 os.chdir(os.path.join(root_dir,'workflow','scripts','working'))
 from helpers import determineFCSVCoordSystem,determine_groups,norm_vec,mag_vec
 
-
 color_map = {
 	"gray": (102, 102, 102),
 	"grey": (102, 102, 102),
@@ -283,7 +282,7 @@ if debug:
 			self.__dict__.update(kwargs)
 	
 	isub='sub-EMOP0471'
-#	data_dir=r'/media/greydon/lhsc_data/SEEG_rerun/derivatives/seeg_scenes'
+
 	data_dir=r'/home/greydon/Documents/data/emory/derivatives/slicer_scene'
 	
 	input=dotdict({
@@ -293,11 +292,11 @@ if debug:
 				'error_metrics': os.path.join(data_dir,isub,f'{isub}_error_metrics.xlsx')
 				})
 	params=dotdict({
-				'sample_line': os.path.join(root_dir,'resources/sample_line.mrk.json'),
+				'sample_line': os.path.join(root_dir,'resources','sample_line.mrk.json'),
 				})
 	output=dotdict({
-		'out_svg':f'{data_dir}/{isub}/{isub}_errors.svg',
-		'out_excel':f'{data_dir}/{isub}/{isub}_error_metrics.xlsx',
+		'out_svg': os.path.join(data_dir,isub, f'{isub}_errors.svg'),
+		'out_excel': os.path.join(data_dir,isub, f'{isub}_error_metrics.xlsx'),
 	})
 	
 	snakemake = Namespace(output=output, params=params,input=input)
@@ -311,7 +310,7 @@ if write_lines:
 isub = snakemake.input.isub
 data_dir = snakemake.input.data_dir
 
-patient_files = [x for x in glob.glob(f"{os.path.join(data_dir,isub)}/*csv") if 'space-world' not in os.path.basename(x)]
+patient_files = [x for x in glob.glob(os.path.join(data_dir,isub,'*csv')) if 'space-world' not in os.path.basename(x)]
 
 file_data={}
 for ifile in [x for x in patient_files if not x.endswith('empty.csv')]:
