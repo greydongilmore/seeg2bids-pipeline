@@ -25,6 +25,7 @@ if config['segmentation']['run']:
     rule label_electrodes_atlas:
         input: 
             fcsv = get_electrodes_coords(subject_id,coords_space='native', coords_type='SEEGA'),
+            fcsv_template = get_electrodes_coords(subject_id,coords_space=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'), coords_type='SEEGA'),
             dseg_tsv = get_age_appropriate_template_name(expand(subject_id,subject=subjects),'atlas_dseg_tsv'),
             dseg_nii = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='dseg.nii.gz', atlas='{atlas}',from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='nonlin',label='dilated'),
             tissue_seg = expand(bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='probseg.nii.gz',label='{tissue}',desc='atropos3seg'),

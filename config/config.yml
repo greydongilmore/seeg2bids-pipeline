@@ -2,7 +2,7 @@
 #--- filepaths
 #
 
-bids_dir: /home/greydon/Documents/data/emory
+bids_dir: /home/greydon/Documents/data/emory_peds
 
 #work computer
 #bids_dir: /home/greydon/Documents/data/cingulate_seizures
@@ -15,11 +15,11 @@ subject_prefix: 'P'
 registration:
     run: True
 segmentation:
-    run: False
+    run: True
 visqc:
     run: True
 fastsurfer:
-    run: True
+    run: False
 hippunfold:
     run: False
 
@@ -38,7 +38,7 @@ contrast_t1:
     present: True
 
 noncontrast_t1:
-    present: True
+    present: False
     session: 'pre'
     datatype: 'anat'
     acq: null
@@ -61,8 +61,13 @@ post_image:
 
 pet:
     present: False
-    position: -1
-    task: rest
+    session: 'pre'
+    datatype: 'pet'
+    acq: 'ac'
+    run: '01'
+    suffix: 'pet'
+    ext: '.nii.gz'
+    position: 0
     algo: ants
 
 other_vol:
@@ -86,7 +91,7 @@ other_vol2:
     algo: ants
 
 seeg_contacts:
-    present: True
+    present: False
     space_coords: &space_coords derivatives/seeg_coordinates/sub-{subject}/sub-{subject}_space-{coords_space}_{coords_type}.fcsv
     scene_coords: &scene_coords derivatives/slicer_scene/sub-{subject}/sub-{subject}_{coords_type}.fcsv
 
@@ -214,7 +219,9 @@ MNIPediatricAsymCohort2:
     orien: 'ras'
     t1w: resources/tpl-MNIPediatricAsym_from-4.5_to-8.5/tpl-MNIPediatricAsym_from-4.5_to-8.5_T1w.nii.gz
     mask: resources/tpl-MNIPediatricAsym_from-4.5_to-8.5/tpl-MNIPediatricAsym_from-4.5_to-8.5_desc-brain_mask.nii.gz
-    tissue_probseg: resources/tpl-MNIPediatricAsym_from-4.5_to-8.5/tpl-MNIPediatricAsym_from-4.5_to-8.5_label-{tissue}_probseg.nii.gz
+    tissue_probseg_wm: resources/tpl-MNIPediatricAsym_from-4.5_to-8.5/tpl-MNIPediatricAsym_from-4.5_to-8.5_label-WM_probseg.nii.gz
+    tissue_probseg_gm: resources/tpl-MNIPediatricAsym_from-4.5_to-8.5/tpl-MNIPediatricAsym_from-4.5_to-8.5_label-GM_probseg.nii.gz
+    tissue_probseg_csf: resources/tpl-MNIPediatricAsym_from-4.5_to-8.5/tpl-MNIPediatricAsym_from-4.5_to-8.5_label-CSF_probseg.nii.gz
     atlas_dseg_nii: resources/tpl-MNI152NLin2009cSym/tpl-MNI152NLin2009cSym_res-1_atlas-{atlas}_dseg.nii.gz
     atlas_dseg_tsv: resources/tpl-MNI152NLin2009cSym/tpl-MNI152NLin2009cSym_atlas-{atlas}_dseg.tsv
 
@@ -225,7 +232,9 @@ MNIPediatricAsymCohort4:
     orien: 'ras'
     t1w: resources/tpl-MNIPediatricAsym_from-7.5_to-13.5/tpl-MNIPediatricAsym_from-7.5_to-13.5_T1w.nii.gz
     mask: resources/tpl-MNIPediatricAsym_from-7.5_to-13.5/tpl-MNIPediatricAsym_from-7.5_to-13.5_desc-brain_mask.nii.gz
-    tissue_probseg: resources/tpl-MNIPediatricAsym_from-7.5_to-13.5/tpl-MNIPediatricAsym_from-7.5_to-13.5_label-{tissue}_probseg.nii.gz
+    tissue_probseg_wm: resources/tpl-MNIPediatricAsym_from-7.5_to-13.5/tpl-MNIPediatricAsym_from-7.5_to-13.5_label-WM_probseg.nii.gz
+    tissue_probseg_gm: resources/tpl-MNIPediatricAsym_from-7.5_to-13.5/tpl-MNIPediatricAsym_from-7.5_to-13.5_label-GM_probseg.nii.gz
+    tissue_probseg_csf: resources/tpl-MNIPediatricAsym_from-7.5_to-13.5/tpl-MNIPediatricAsym_from-7.5_to-13.5_label-CSF_probseg.nii.gz
     atlas_dseg_nii: resources/tpl-MNI152NLin2009cSym/tpl-MNI152NLin2009cSym_res-1_atlas-{atlas}_dseg.nii.gz
     atlas_dseg_tsv: resources/tpl-MNI152NLin2009cSym/tpl-MNI152NLin2009cSym_atlas-{atlas}_dseg.tsv
 
@@ -236,7 +245,9 @@ MNIPediatricAsymCohort6:
     orien: 'ras'
     t1w: resources/tpl-MNIPediatricAsym_from-13.0_to-18.5/tpl-MNIPediatricAsym_from-13.0_to-18.5_T1w.nii.gz
     mask: resources/tpl-MNIPediatricAsym_from-13.0_to-18.5/tpl-MNIPediatricAsym_from-13.0_to-18.5_desc-brain_mask.nii.gz
-    tissue_probseg: resources/tpl-MNIPediatricAsym_from-13.0_to-18.5/tpl-MNIPediatricAsym_from-13.0_to-18.5_label-{tissue}_probseg.nii.gz
+    tissue_probseg_wm: resources/tpl-MNIPediatricAsym_from-13.0_to-18.5/tpl-MNIPediatricAsym_from-13.0_to-18.5_label-WM_probseg.nii.gz
+    tissue_probseg_gm: resources/tpl-MNIPediatricAsym_from-13.0_to-18.5/tpl-MNIPediatricAsym_from-13.0_to-18.5_label-GM_probseg.nii.gz
+    tissue_probseg_csf: resources/tpl-MNIPediatricAsym_from-13.0_to-18.5/tpl-MNIPediatricAsym_from-13.0_to-18.5_label-CSF_probseg.nii.gz
     atlas_dseg_nii: resources/tpl-MNI152NLin2009cSym/tpl-MNI152NLin2009cSym_res-1_atlas-{atlas}_dseg.nii.gz
     atlas_dseg_tsv: resources/tpl-MNI152NLin2009cSym/tpl-MNI152NLin2009cSym_atlas-{atlas}_dseg.tsv
 
@@ -264,8 +275,7 @@ ants:
 ext_libs:
     c3d_affine_tool: resources/c3d-1.4.0/bin/c3d_affine_tool
     c3d: resources/c3d-1.4.0/bin/c3d
-    fslmerge: resources/fsl/fslmerge.glnxa64
-    fslmaths: resources/fsl/fslmaths.glnxa64
+    fsl: /home/greydon/software/fsl/share/fsl/bin
 singularity:
     neuroglia-core: "docker://khanlab/neuroglia-core:latest"
     fastsurfer: "docker://deepmi/fastsurfer:latest"

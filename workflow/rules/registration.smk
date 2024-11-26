@@ -12,12 +12,13 @@ def get_postop_filename(wildcards):
     return file
 
 def get_pet_filename(wildcards):
-    files=glob(bids(root=join(config['out_dir'], 'bids'), subject=f'{wildcards.subject}', datatype='pet', session='pre', task=config['pet']['task'], run='*', suffix='pet.nii.gz'))
-    if len(files) <=1:
-        file=expand(bids(root=join(config['out_dir'], 'bids'), subject='{subject}', datatype='pet', session='pre', task=config['pet']['task'], run='01', suffix='pet.nii.gz'),subject=wildcards.subject)
+    if config['pet']['run'].isnumeric() and not isinstance(config['pet']['position'],int):
+        file=expand(bids(root=join(config['out_dir'], 'bids'), subject='{subject}', datatype=config['pet']['datatype'], session=config['pet']['session'], acq=config['pet']['acq'], run=config['pet']['run'], suffix=config['pet']['suffix']+config['pet']['ext']),subject=wildcards.subject)
     else:
-        files.sort(key=lambda f: int(re.sub('\D', '', f)))
+        files=glob(bids(root=join(config['out_dir'], 'bids'), subject=f'{wildcards.subject}', datatype=config['pet']['datatype'], session=config['pet']['session'], acq=config['pet']['acq'], run='*', suffix=config['pet']['suffix']+config['pet']['ext']))
+        files.sort(key=lambda f: int(re.sub('\D', '', f)),reverse=False)
         file=files[config['pet']['position']]
+    print(file)
     return file
 
 def get_reference_t1(wildcards):
@@ -686,7 +687,7 @@ rule mask_template_t1w:
         t1 = get_age_appropriate_template_name(expand(subject_id,subject=subjects),'t1w'),
         mask = get_age_appropriate_template_name(expand(subject_id,subject=subjects),'mask'),
     params:
-        fslmaths=config['ext_libs']['fslmaths'],
+        fslmaths=join(config['ext_libs']['fsl'],'fslmaths'),
     output:
         t1 = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg','sub-'+subject_id),prefix=f"tpl-{get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space')}",desc='masked',suffix='T1w.nii.gz')
     #container: config['singularity']['neuroglia']
@@ -700,7 +701,7 @@ if config['segmentation']['run']:
             t1 = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,desc='n4', suffix='T1w.nii.gz'),
             mask = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='mask.nii.gz',from_='atropos3seg',desc='brain')
         params:
-            fslmaths=config['ext_libs']['fslmaths'],
+            fslmaths=join(config['ext_libs']['fsl'],'fslmaths'),
         output:
             t1 = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='T1w.nii.gz',from_='atropos3seg',desc='masked'),
         #container: config['singularity']['neuroglia']
@@ -714,7 +715,7 @@ if config['segmentation']['run']:
                 ct = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,desc='rigid',space='T1w', suffix=config['post_image']['suffix']+config['post_image']['ext']),
                 mask = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='mask.nii.gz',from_='atropos3seg',desc='brain')
             params:
-                fslmaths=config['ext_libs']['fslmaths'],
+                fslmaths=join(config['ext_libs']['fsl'],'fslmaths'),
             output:
                 ct = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix=config['post_image']['suffix']+config['post_image']['ext'],from_='atropos3seg',desc='masked'),
             #container: config['singularity']['neuroglia']
@@ -924,7 +925,7 @@ if config['segmentation']['run']:
         input:
             mask = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='mask.nii.gz',from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='affine',label='brain'),
         params:
-            fslmaths=config['ext_libs']['fslmaths'],
+            fslmaths=join(config['ext_libs']['fsl'],'fslmaths'),
         output:
             mask = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='mask.nii.gz',from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='affine',label='braindilated'),
         #container: config['singularity']['neuroglia']
@@ -938,7 +939,7 @@ if config['segmentation']['run']:
             dseg = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='dseg.nii.gz',atlas='{atlas}',from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='nonlin'),
         params:
             dil_opt =  ' '.join([ '-dilD' for i in range(config['n_atlas_dilate'])]),
-            fslmaths=config['ext_libs']['fslmaths'],
+            fslmaths=join(config['ext_libs']['fsl'],'fslmaths'),
         output:
             dseg = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='dseg.nii.gz',atlas='{atlas}',from_=get_age_appropriate_template_name(expand(subject_id,subject=subjects),'space'),desc='nonlin',label='dilated'),
         #container: config['singularity']['neuroglia']

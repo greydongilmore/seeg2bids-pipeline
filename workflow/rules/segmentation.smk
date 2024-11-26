@@ -16,7 +16,7 @@ rule tissue_seg_kmeans_init:
         c = config['convergence'],
         posterior_fmt = 'posteriors_%d.nii.gz',
         posterior_glob = 'posteriors_*.nii.gz',
-        fslmerge=config['ext_libs']['fslmerge'],
+        fslmerge=join(config['ext_libs']['fsl'],'fslmerge'),
     output:
         seg = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='dseg.nii.gz',desc='atroposKseg'),
         posteriors = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='probseg.nii.gz',desc='atroposKseg'),
@@ -46,7 +46,7 @@ rule tissue_seg_to_4d:
         tissue_segs = expand(bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='probseg.nii.gz',label='{tissue}',desc='atropos3seg'),
                             tissue=config['tissue_labels'],allow_missing=True),
     params:
-        fslmerge=config['ext_libs']['fslmerge'],
+        fslmerge=join(config['ext_libs']['fsl'],'fslmerge'),
     output:
         tissue_seg = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='probseg.nii.gz',desc='atropos3seg')
     group: 'preproc'
@@ -59,7 +59,7 @@ rule brainmask_from_tissue:
         tissue_seg = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='probseg.nii.gz',desc='atropos3seg')
     params:
         threshold = 0.5,
-        fslmaths=config['ext_libs']['fslmaths'],
+        fslmaths=join(config['ext_libs']['fsl'],'fslmaths'),
     output:
         mask = bids(root=join(config['out_dir'], 'derivatives', 'atlasreg'),subject=subject_id,suffix='mask.nii.gz',from_='atropos3seg',desc='brain')
     #container: config['singularity']['neuroglia']
