@@ -16,6 +16,7 @@ from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.enum.text import MSO_AUTO_SIZE
 from pptx import Presentation
 from pptx.util import Inches
+from collections import ChainMap
 
 if sys.platform=='linux':
 	if os.path.exists(os.path.join('/home','greydon','Documents','GitHub','seeg2bids-pipeline')):
@@ -281,9 +282,9 @@ if debug:
 		def __init__(self, **kwargs):
 			self.__dict__.update(kwargs)
 	
-	isub='sub-EMOP0471'
+	isub='sub-EMOP0288'
 
-	data_dir=r'/home/greydon/Documents/data/emory/derivatives/slicer_scene'
+	data_dir=r'/home/greydon/Documents/data/emory_seeg/derivatives/slicer_scene'
 	
 	input=dotdict({
 				'isub': isub,
@@ -314,11 +315,18 @@ patient_files = [x for x in glob.glob(os.path.join(data_dir,isub,'*csv')) if 'sp
 
 file_data={}
 for ifile in [x for x in patient_files if not x.endswith('empty.csv')]:
-	determineFCSVCoordSystem(ifile)
+	coord_sys,headFin=determineFCSVCoordSystem(ifile)
 	fcsv_data = pd.read_csv(ifile, skiprows=3, header=None)
-	fcsv_data.rename(columns={0:'node_id', 1:'x', 2:'y', 3:'z', 4:'ow', 5:'ox',
-			6:'oy', 7:'oz', 8:'vis', 9:'sel', 10:'lock',
-			11:'label', 12:'description', 13:'associatedNodeID'}, inplace=True)
+	head_info=dict(ChainMap(*[{i:x} for i,x in enumerate(headFin)]))
+	if fcsv_data.shape[1] != len(head_info):
+		fcsv_data = fcsv_data.loc[:,:len(head_info)-1]
+		
+	fcsv_data=fcsv_data.iloc[:,:].rename(columns=head_info).reset_index(drop=True)
+	
+	if coord_sys not in ['0','RAS']:
+		fcsv_data['x']=fcsv_data['x']*-1
+		fcsv_data['y']=fcsv_data['y']*-1
+	
 	if ifile.lower().endswith('actual.fcsv'):
 		file_data['actual']=fcsv_data
 	elif ifile.lower().endswith('planned.fcsv'):

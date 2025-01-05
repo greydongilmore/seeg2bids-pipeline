@@ -8,14 +8,50 @@ Created on Thu Jun  8 22:13:00 2023
 
 import numpy as np
 import regex as re
+import pydicom
+import shutil
 from functools import reduce
 import nibabel as nb
 import glob
-import os
+import os,sys
+import subprocess
 import pandas as pd
 from collections import ChainMap
+import pandas as pd
+from pathlib import Path
+
+
 np.set_printoptions(precision=3,suppress=True)
 
+def determineFCSVCoordSystem(input_fcsv):
+	# need to determine if file is in RAS or LPS
+	# loop through header to find coordinate system
+	coordFlag = re.compile('# CoordinateSystem')
+	verFlag = re.compile('# Markups fiducial file version')
+	headFlag = re.compile('# columns')
+	coord_sys=None
+	headFin=None
+	ver_fin=None
+	
+	with open(input_fcsv, 'r') as myfile:
+		firstNlines=myfile.readlines()[0:3]
+	
+	for row in firstNlines:
+		row=re.sub("[\s\,]+[\,]","",row).replace("\n","")
+		cleaned_dict={row.split('=')[0].strip():row.split('=')[1].strip()}
+		if None in list(cleaned_dict):
+			cleaned_dict['# columns'] = cleaned_dict.pop(None)
+		if any(coordFlag.match(x) for x in list(cleaned_dict)):
+			coord_sys = list(cleaned_dict.values())[0]
+		if any(verFlag.match(x) for x in list(cleaned_dict)):
+			verString = list(filter(verFlag.match,  list(cleaned_dict)))
+			assert len(verString)==1
+			ver_fin = verString[0].split('=')[-1].strip()
+		if any(headFlag.match(x) for x in list(cleaned_dict)):
+			headFin=list(cleaned_dict.values())[0].split(',')
+	
+	
+	return coord_sys,headFin
 
 def extractTokens(textfile):
 	# Token starts with [%%tokenname%%]
@@ -72,7 +108,7 @@ def getCoordinates(textfile, queryPoint, queryHead):
 	return coords_lps
 
 def getTrajectoriesList(textfile):
-	pattern = r"(?P<name>[\^-\w]+) (?P<type>\d) (?P<color>\d+) (?P<entry_point_defined>\d) (?P<entry>-?\d+\.\d+ -?\d+\.\d+ -?\d+\.\d+) (?P<target_point_defined>\d) (?P<target>-?\d+\.\d+ -?\d+\.\d+ -?\d+\.\d+) (?P<instrument_length>\d+\.\d+) (?P<instrument_diameter>\d+\.\d+)\n"
+	pattern = r"(?P<name>[\^\-+\w]+) (?P<type>\d) (?P<color>\d+) (?P<entry_point_defined>\d) (?P<entry>-?\d+\.\d+ -?\d+\.\d+ -?\d+\.\d+) (?P<target_point_defined>\d) (?P<target>-?\d+\.\d+ -?\d+\.\d+ -?\d+\.\d+) (?P<instrument_length>\d+\.\d+) (?P<instrument_diameter>\d+\.\d+)\n"
 	trajectories = [m.groupdict() for m in re.finditer(pattern, textfile)]
 	for trajectory in trajectories:
 		trajectory['name']=trajectory['name'].replace('^',' ')
@@ -170,99 +206,287 @@ def rotation3d(x=0, y=0, z=0):
 	)
 	return r
 
-#%%
+def acpc_transform(ac_point,pc_point,mid_point):
+	pmprime = (ac_point + pc_point) / 2
+	vec1 = ac_point - pmprime
+	vec2 = mid_point - pmprime
+	vec1Mag = np.sqrt(vec1[0] ** 2 + vec1[1] ** 2 + vec1[2] ** 2)
+	vec2Mag = np.sqrt(vec2[0] ** 2 + vec2[1] ** 2 + vec2[2] ** 2)
+	vec1Unit = vec1 / vec1Mag
+	vec2Unit = vec2 / vec2Mag
+	yihatprime = vec1Unit
+	if pmprime[2] > mid_point[2]:
+		xihatprime = np.cross(vec2Unit, vec1Unit)
+	else:
+		xihatprime = np.cross(vec1Unit, vec2Unit)
+	xAxisMag = (xihatprime[0] ** 2 + xihatprime[1] ** 2 + xihatprime[2] ** 2) ** 0.5
+	xihatprime = xihatprime / xAxisMag
+	zAxis = np.cross(xihatprime, yihatprime)
+	zAxisMag = (zAxis[0] ** 2 + zAxis[1] ** 2 + zAxis[2] ** 2) ** 0.5
+	zihatprime = zAxis / zAxisMag
+	xihat = np.array([1, 0, 0])
+	yihat = np.array([0, 1, 0])
+	zihat = np.array([0, 0, 1])
+	riiprime = np.vstack([np.array([xihatprime.dot(xihat), xihatprime.dot(yihat), xihatprime.dot(zihat),0]),
+						 np.array([yihatprime.dot(xihat), yihatprime.dot(yihat), yihatprime.dot(zihat),0]),
+						 np.array([zihatprime.dot(xihat), zihatprime.dot(yihat), zihatprime.dot(zihat),0]),
+						 np.array([0,0,0,1])])
+	return riiprime
 
+def getFrameRotation(ac,pc,mid):
+	pmprime = (ac + pc) / 2
+	vec1 = ac - pmprime
+	vec2 = mid - pmprime
+	vec1Mag = np.sqrt(vec1[0] ** 2 + vec1[1] ** 2 + vec1[2] ** 2)
+	vec2Mag = np.sqrt(vec2[0] ** 2 + vec2[1] ** 2 + vec2[2] ** 2)
+	vec1Unit = vec1 / vec1Mag
+	vec2Unit = vec2 / vec2Mag
+	yihatprime = vec1Unit
+	if pmprime[2] > mid[2]:
+		xihatprime = np.cross(vec2Unit, vec1Unit)
+	else:
+		xihatprime = np.cross(vec1Unit, vec2Unit)
+	xAxisMag = (xihatprime[0] ** 2 + xihatprime[1] ** 2 + xihatprime[2] ** 2) ** 0.5
+	xihatprime = xihatprime / xAxisMag
+	zAxis = np.cross(xihatprime, yihatprime)
+	zAxisMag = (zAxis[0] ** 2 + zAxis[1] ** 2 + zAxis[2] ** 2) ** 0.5
+	zihatprime = zAxis / zAxisMag
+	xihat = np.array([1, 0, 0])
+	yihat = np.array([0, 1, 0])
+	zihat = np.array([0, 0, 1])
+	riiprime = np.vstack([np.array([xihatprime.dot(xihat), xihatprime.dot(yihat), xihatprime.dot(zihat),0]),
+						 np.array([yihatprime.dot(xihat), yihatprime.dot(yihat), yihatprime.dot(zihat),0]),
+						 np.array([zihatprime.dot(xihat), zihatprime.dot(yihat), zihatprime.dot(zihat),0]),
+						 np.array([0,0,0,1])])
+	return riiprime
 
-ros_file_path=r'/home/greydon/Documents/data/emory/derivatives/slicer_scene/'
-
-isub='sub-EMOP0241'
-
-#rot2ras=rotation3d(np.deg2rad(0),np.deg2rad(0),np.deg2rad(180))
-rot2ras=rotation_matrix(np.deg2rad(0),np.deg2rad(0),np.deg2rad(180))
-
-
-ros_fname=glob.glob(os.path.join(ros_file_path, isub,'*.ros'))
-out_tfm=os.path.join(ros_file_path,isub,f'{isub}_from-subject_to-world_planned.tfm')
-out_inv_tfm=os.path.join(ros_file_path,isub,f'{isub}_from-world_to-subject_planned.tfm')
-out_dir=os.path.join(ros_file_path, isub,'RAS_data_python')
-out_fcsv=os.path.join(ros_file_path,isub,f'{isub}_planned.fcsv')
-
-if ros_fname:
-	#parse ROS file
-	rosa_parsed=parseROSAfile(ros_fname[0])
-
-if 'MR' in rosa_parsed['volumes'][0]['MODALITY']:
-	nii_fname=glob.glob(os.path.join(ros_file_path, isub,'*acq-contrast_T1w.nii.gz'))
-else:
-	nii_fname=glob.glob(os.path.join(ros_file_path, isub,'*ses-pre*_ct.nii.gz'))
-
-
-if nii_fname and ros_fname:
+def xfm_txt_to_tfm(xfm_fname):
+	transformMatrix = np.loadtxt(xfm_fname)
 	lps2ras=np.diag([-1, -1, 1, 1])
 	ras2lps=np.diag([-1, -1, 1, 1])
+	transform_lps=np.dot(ras2lps, np.dot(transformMatrix,lps2ras))
 	
-	#centering transform
-	orig_nifti=nb.load(nii_fname[0])
-	orig_affine=orig_nifti.affine.copy()
-	center_coordinates=np.array([x/ 2 for x in orig_nifti.header["dim"][1:4]-1])
-	homogeneous_coord = np.concatenate((center_coordinates, np.array([1])), axis=0)
-	centering_transform_raw=np.c_[np.vstack([np.eye(3),np.zeros(3)]), np.round(np.dot(orig_affine,homogeneous_coord),3)]
-	centering_transform=np.linalg.inv(np.dot(ras2lps,np.dot(np.linalg.inv(centering_transform_raw),lps2ras)))
-	t_out=rot2ras@rosa_parsed['volumes'][0]['TRdicomRdisplay']@centering_transform_raw
+	Parameters = " ".join([str(x) for x in np.concatenate((transform_lps[0:3,0:3].reshape(9), transform_lps[0:3,3]))])
 	
-# 	orig_affine[0,-1]=orig_nifti.header["pixdim"][1]*center_coordinates[0]*-1
-# 	orig_affine[1,-1]=orig_nifti.header["pixdim"][2]*center_coordinates[1]*-1
-# 	orig_affine[2,-1]=orig_nifti.header["pixdim"][3]*center_coordinates[2]*-1
-# 	orig_nifti.set_sform(orig_affine,1)
-# 	nb.save(orig_nifti, os.path.join(nii_outdir, f"orig_{os.path.basename(nii_fname[0])}"))
-# 	
-# 	M=np.vstack([
-# 		orig_nifti.header["srow_x"],orig_nifti.header["srow_y"],orig_nifti.header["srow_z"],np.array([0,0,0,1])
-# 	])
-# 	
-# 	t_out=rot2ras@rosa_parsed['volumes'][0]['TRdicomRdisplay']@M
-# 	
-# 	orig_nifti.set_sform(t_out,1)
-# 	nb.save(orig_nifti, os.path.join(nii_outdir, os.path.basename(nii_fname[0])))
-# 	os.remove( os.path.join(nii_outdir, f"orig_{os.path.basename(nii_fname[0])}"))
-# 	
-# 	MM=spm_affine(os.path.join(nii_outdir, os.path.basename(nii_fname[0])))
-# 	
-	#store two transforms to file, to-world and to-t1w
-	#centering_transform=np.linalg.inv(np.dot(ras2lps,np.dot(np.linalg.inv(t_out),lps2ras)))
-	Parameters = " ".join([str(x) for x in np.concatenate((t_out[0:3,0:3].reshape(9), t_out[0:3,3]))])
-	
-	with open(out_tfm, 'w') as fid:
+	tfm_fname=os.path.splitext(xfm_fname)[0] + '.tfm'
+	with open(tfm_fname, 'w') as fid:
 		fid.write("#Insight Transform File V1.0\n")
 		fid.write("#Transform 0\n")
 		fid.write("Transform: AffineTransform_double_3_3\n")
 		fid.write("Parameters: " + Parameters + "\n")
 		fid.write("FixedParameters: 0 0 0\n")
+		
+def run_command(cmdLineArguments, regEnv=None):
+	if regEnv is not None:
+		subprocess.run(cmdLineArguments, stdout=subprocess.PIPE,stderr=subprocess.STDOUT, shell=True, env=(regEnv))
+	else:
+		subprocess.run(cmdLineArguments, stdout=subprocess.PIPE,stderr=subprocess.STDOUT, shell=True)
+
+def sorted_nicely(lst):
+	convert = lambda text: int(text) if text.isdigit() else text
+	alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
+	sorted_lst = sorted(lst, key = alphanum_key)
 	
-	coords=[]
-	descs=[]
-	for idx,traj in enumerate(rosa_parsed['trajectories']):
-		#vecT = np.hstack([traj['target'],1])*np.array([-1,-1,1,1])
-		#vecE = np.hstack([traj['entry'],1])*np.array([-1,-1,1,1])
+	return sorted_lst
+
+greedy_bin=r'/opt/greedy-1.3.0/bin/greedy'
+
+#%%
+
+
+ros_file_path=r'/home/greydon/Documents/data/emory_seeg/derivatives/slicer_scene'
+
+isubpath=ros_file_path+'/sub-EMOP0443'
+
+
+if glob.glob(os.path.join(ros_file_path,"sub-*")):
+	key_word='sub-*'
+else:
+	key_word='*'
+
+for isubpath in sorted_nicely(glob.glob(os.path.join(ros_file_path,key_word))):
+	isub=os.path.basename(isubpath)
+	ros_fname_list=glob.glob(os.path.join(ros_file_path, isub,"**",'*.ros'),recursive=True)
+	for ros_fname in ros_fname_list:
+		#parse ROS file
+		rosa_parsed=parseROSAfile(ros_fname)
 		
-		vecT = rot2ras@np.hstack([traj['target'],1])
-		vecE = rot2ras@np.hstack([traj['entry'],1])
+		dicom_dir_list=glob.glob(os.path.join(ros_file_path, isub,"**",'DICOM'),recursive=True)
 		
-		tvecT = centering_transform_raw@  (vecT.T)
-		tvecE = centering_transform_raw@ (vecE.T)
-		coordsys='0'
+		for dicom_dir in dicom_dir_list:
+			for idicom in sorted_nicely(os.listdir(dicom_dir)):
+				dicom_files=[]
+				for root, directories, filenames in os.walk(os.path.join(dicom_dir,idicom)):
+					for filename in filenames:
+						full_filename=os.path.join(root, filename)
+						if pydicom.misc.is_dicom(full_filename):
+							dicom_files.append(full_filename)
+				
+				if dicom_files:
+					out_dir=os.path.join(dicom_dir,idicom,'DICOMFiles')
+					if not os.path.exists(f'{out_dir}.zip'):
+						os.makedirs(out_dir, exist_ok=True)
+						folder=Path(out_dir)
+						
+						for ifile in dicom_files:
+							shutil.move(ifile, folder)
+						
+						if sys.platform == 'win32':
+							zip_cmd = ' '.join([f'{os.path.splitroot(out_dir)[0].lower()}&&',
+												  f'cd {os.path.dirname(os.path.splitroot(out_dir)[-1])}&&',
+												 'zip -r',
+												 f'"{out_dir}.zip"',
+												 f'{os.path.basename(out_dir)}'])
+						else:
+							zip_cmd = ' '.join([f'cd {out_dir}&&',
+												 'zip -2 -r -m',
+												 f'"{out_dir}.zip"',
+												 '*'])
+						
+						print(f"Zipping {isub}: {idicom}")
+						run_command(zip_cmd)
+						shutil.rmtree(out_dir)
+					else:
+						print(f"EXISTS: {out_dir}.zip")
 		
-		traj['target_t']=np.round(tvecT,3).tolist()[:3]
-		coords.append(traj['target_t'])
-		descs.append(traj['name'])
+		nii_xfm=glob.glob(os.path.join(isubpath, f"{isub}_acq-ROSA_desc-rigid_*_xfm.tfm"))
 		
-		traj['entry_t']=np.round(tvecE,3).tolist()[:3]
-		coords.append(traj['entry_t'])
-		descs.append(traj['name'])
+		if nii_xfm:
+			nii_xfm=nii_xfm[0]
+			nii_fname=glob.glob(os.path.join(isubpath, f"{isub}_ses-pre_acq-ROSA_*.nii.gz"))[0]
+		else:
+			img_vol=f'{os.path.sep}'.join([os.path.dirname(ros_fname)]+[x for x in rosa_parsed['volumes'][0]['VOLUME'].strip().split("\\") if x != ""])+".img"
+			if os.path.exists(img_vol):
+				nii_fname=f"{os.path.sep}".join([isubpath, '_'.join([os.path.basename(os.path.dirname(ros_fname)), os.path.basename(img_vol).replace('.img', '.nii.gz')])])
+				if not os.path.exists(nii_fname):
+					img_obj=nb.load(img_vol)
+					nb.save(img_obj, nii_fname)
+			
+			nii_xfm=os.path.join(isubpath, f"{isub}_desc-rigid_from-{os.path.splitext(os.path.basename(img_vol))[0]}_to-T1w_xfm.txt")
+			nii_xfm=r'/home/greydon/Documents/data/emory_seeg/derivatives/slicer_scene/sub-EMOP0443/sub-EMOP0443_desc-rigid_from-2021_to-2019_type-contrast_xfm.tfm'
+			fixed_img_path=glob.glob(os.path.join(isubpath,'*acq-contrast_T1w*'))
+			
+			rigid_cmd = ' '.join([
+				f'{greedy_bin} -d 3 -threads 4',
+				"-a -dof 6 -ia-image-centers",
+				"-m MI",
+				f'-i "{fixed_img_path[0]}" "{nii_fname}"',
+				f'-o "{nii_xfm}"',
+				"-n 100x50x0"
+			])
+			
+			run_command(rigid_cmd)
+			xfm_txt_to_tfm(nii_xfm)
+			nii_xfm=nii_xfm.replace(".txt",".tfm")
 		
-		rosa_parsed['trajectories'][idx]=traj
-	
-	writeFCSV(coords,[],descs,output_fcsv=out_fcsv,coordsys=coordsys)
-	
-	print(f"Done {isub}")
-	
+		rot2ras=rotation_matrix(np.deg2rad(0),np.deg2rad(0),np.deg2rad(180))
+		acpc_fname=glob.glob(os.path.join(ros_file_path, isub,'*acpc.fcsv'))
+		out_tfm=os.path.join(ros_file_path,isub,f'{isub}_from-subject_to-world_planned.tfm')
+		out_acpc_tfm=os.path.join(ros_file_path,isub,f'{isub}_acpc_xfm.tfm')
+		out_inv_tfm=os.path.join(ros_file_path,isub,f'{isub}_from-world_to-subject_planned.tfm')
+		out_dir=os.path.join(ros_file_path, isub,'RAS_data_python')
+		out_fcsv=os.path.join(ros_file_path,isub,f'{isub}_planned.fcsv')
+		out_acpc_fcsv=os.path.join(ros_file_path,isub,f'{isub}_acpc.fcsv')
+		
+		sub2template= pd.read_table(nii_xfm,sep=",",header=2)
+		sub2t_xfm=np.array([float(x) for x in sub2template.iloc[0,0].split(':')[-1].strip().split(' ')])
+		sub2t_transform = np.eye(4)
+		sub2t_transform[0:3, 0:3] = sub2t_xfm[:9].reshape(3, 3)
+		sub2t_transform[0:3, 3] = sub2t_xfm[9:]
+		
+		if nii_fname:
+			lps2ras=np.diag([-1, -1, 1, 1])
+			ras2lps=np.diag([-1, -1, 1, 1])
+			
+			sub2t_xfm=np.dot(ras2lps,np.dot(np.linalg.inv(sub2t_transform),lps2ras))
+			
+			#centering transform
+			orig_nifti=nb.load(nii_fname)
+			orig_affine=orig_nifti.affine.copy()
+			center_coordinates=np.array([x/ 2 for x in orig_nifti.header["dim"][1:4]-1])
+			homogeneous_coord = np.concatenate((center_coordinates, np.array([1])), axis=0)
+			centering_transform_raw=np.c_[np.vstack([np.eye(3),np.zeros(3)]), np.round(np.dot(orig_affine,homogeneous_coord),3)]
+			centering_transform=np.dot(ras2lps,np.dot(np.linalg.inv(centering_transform_raw),lps2ras))
+			t_out=rot2ras@rosa_parsed['volumes'][0]['TRdicomRdisplay']@centering_transform_raw
+			
+			Parameters = " ".join([str(x) for x in np.concatenate((centering_transform[0:3,0:3].reshape(9), centering_transform[0:3,3]))])
+			with open(out_tfm, 'w') as fid:
+				fid.write("#Insight Transform File V1.0\n")
+				fid.write("#Transform 0\n")
+				fid.write("Transform: AffineTransform_double_3_3\n")
+				fid.write("Parameters: " + Parameters + "\n")
+				fid.write("FixedParameters: 0 0 0\n")
+			
+			coords=[]
+			descs=[]
+			for idx,traj in enumerate(rosa_parsed['trajectories']):
+				vecT = np.hstack([traj['target'],1])*np.array([-1,-1,1,1])
+				vecE = np.hstack([traj['entry'],1])*np.array([-1,-1,1,1])
+				
+				tvecT = centering_transform_raw@vecT
+				tvecE = centering_transform_raw@vecE
+				
+				tvecT = sub2t_xfm@tvecT
+				tvecE = sub2t_xfm@tvecE
+				
+				coordsys='0'
+				
+				traj['target_t']=np.round(tvecT,3).tolist()[:3]
+				coords.append(traj['target_t'])
+				descs.append(traj['name'])
+				
+				traj['entry_t']=np.round(tvecE,3).tolist()[:3]
+				coords.append(traj['entry_t'])
+				descs.append(traj['name'])
+				
+				rosa_parsed['trajectories'][idx]=traj
+			
+			writeFCSV(coords,[],descs,output_fcsv=out_fcsv,coordsys=coordsys)
+			
+			if rosa_parsed['ac'] and rosa_parsed['pc']:
+				acT = centering_transform_raw @ (np.hstack([rosa_parsed['ac'],1])*np.array([-1,-1,1,1]))
+				pcT = centering_transform_raw @ (np.hstack([rosa_parsed['pc'],1])*np.array([-1,-1,1,1]))
+				ihT = centering_transform_raw @ (np.hstack([rosa_parsed['ih'],1])*np.array([-1,-1,1,1]))
+				
+				acT = sub2t_transform @ acT
+				pcT = sub2t_transform @ pcT
+				ihT = sub2t_transform @ ihT
+				
+				coords=[acT,pcT,ihT]
+				descs=['ac','pc','mid']
+				
+				writeFCSV(coords,descs,[],output_fcsv=out_acpc_fcsv,coordsys='0')
+			
+			if acpc_fname:
+				coord_sys,head_info=determineFCSVCoordSystem(acpc_fname[0])
+				head_info=dict(ChainMap(*[{i:x} for i,x in enumerate(head_info)]))
+				fcsv_data = pd.read_csv(acpc_fname[0], skiprows=3, header=None)
+				fcsv_data=fcsv_data.iloc[:,:].rename(columns=head_info).reset_index(drop=True)
+				if any(x in coord_sys for x in {'LPS','1'}):
+					fcsv_data['x'] = -1 * fcsv_data['x'] # flip orientation in x
+					fcsv_data['y'] = -1 * fcsv_data['y'] # flip orientation in y
+				
+				ac_p=fcsv_data.loc[fcsv_data['label'] =='ac', 'x':'z'].values[0]
+				pc_p=fcsv_data.loc[fcsv_data['label'] =='pc', 'x':'z'].values[0]
+				mid_p=fcsv_data.loc[fcsv_data['label'] =='mid', 'x':'z'].values[0]
+				mcp = np.array([(ac_p[0] + pc_p[0]) / 2, (ac_p[1] + pc_p[1]) / 2, (ac_p[2] + pc_p[2]) / 2])*np.array([1,1,1])
+				
+				riiMatrix=acpc_transform(ac_p, pc_p, mid_p)
+				riiMatrix=getFrameRotation(ac_p, pc_p, mid_p)
+				lps2ras=np.diag([-1, -1, 1, 1])
+				ras2lps=np.diag([-1, -1, 1, 1])
+				outMatrix=np.dot(ras2lps,np.dot(np.linalg.inv(riiMatrix),lps2ras))
+				riiMatrix[:3,-1]=centering_transform[:3,-1]
+				outACPC = " ".join([str(x) for x in np.concatenate((outMatrix[0:3,0:3].reshape(9), outMatrix[0:3,3]))])
+				
+				with open(out_acpc_tfm, 'w') as fid:
+					fid.write("#Insight Transform File V1.0\n")
+					fid.write("#Transform 0\n")
+					fid.write("Transform: AffineTransform_double_3_3\n")
+					fid.write("Parameters: " + outACPC + "\n")
+					fid.write("FixedParameters: 0 0 0\n")
+			
+			
+			
+			print(f"Done {isub}")
+			

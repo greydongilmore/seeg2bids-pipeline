@@ -2,13 +2,13 @@
 #--- filepaths
 #
 
-bids_dir: /home/greydon/Documents/data/emory_peds
+bids_dir: /home/greydon/Documents/data/emory_seeg
 
 #work computer
 #bids_dir: /home/greydon/Documents/data/cingulate_seizures
 
 #external drive
-#bids_dir: /media/greydon/lhsc_data/datasets/SEEG_before_robot
+#bids_dir: /media/greydon/lhsc_data/datasets/emory_seeg
 
 subject_prefix: 'P'
 
@@ -19,26 +19,36 @@ segmentation:
 visqc:
     run: True
 fastsurfer:
-    run: False
+    run: True
 hippunfold:
-    run: False
+    run: True
 
 fastsurfer_vol:
-    ses: 'pre'
-    acq: null           #use 'null' to ignore key
-    desc: null          #use 'null' to ignore key
+    present: True
+    session: 'pre'
+    datatype: 'anat'
+    acq: null
     run: '01'
     suffix: 'T1w'
     ext: '.nii.gz'
+    position: 0
 #
 #--- imaging volumes
 #
 
 contrast_t1:
     present: True
+    session: 'pre'
+    datatype: 'anat'
+    acq: null
+    run: '02'
+    suffix: 'T1w'
+    ext: '.nii.gz'
+    position: -1
+    algo: ants
 
 noncontrast_t1:
-    present: False
+    present: True
     session: 'pre'
     datatype: 'anat'
     acq: null
@@ -56,25 +66,26 @@ post_image:
     run: '01'
     suffix: 'ct'
     ext: '.nii.gz'
-    position: -1
+    position: 0
     algo: ants
 
 pet:
-    present: False
+    present: True
     session: 'pre'
     datatype: 'pet'
-    acq: 'ac'
+    acq: Null
     run: '01'
     suffix: 'pet'
+    task: 'rest'
     ext: '.nii.gz'
     position: 0
     algo: ants
 
 other_vol:
-    present: False
+    present: True
     session: 'pre'
     datatype: 'ct'
-    acq: null
+    acq: 'ROSA'
     run: '01'
     suffix: 'ct'
     ext: '.nii.gz'
@@ -83,15 +94,15 @@ other_vol:
 other_vol2:
     present: False
     session: 'pre'
-    datatype: 'pet'
-    acq: 'ac'
+    datatype: 'anat'
+    acq: '7T'
     run: '01'
-    suffix: 'pet'
+    suffix: 'T1map'
     ext: '.nii.gz'
     algo: ants
 
 seeg_contacts:
-    present: False
+    present: True
     space_coords: &space_coords derivatives/seeg_coordinates/sub-{subject}/sub-{subject}_space-{coords_space}_{coords_type}.fcsv
     scene_coords: &scene_coords derivatives/slicer_scene/sub-{subject}/sub-{subject}_{coords_type}.fcsv
 

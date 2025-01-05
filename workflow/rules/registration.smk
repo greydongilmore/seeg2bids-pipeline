@@ -13,9 +13,9 @@ def get_postop_filename(wildcards):
 
 def get_pet_filename(wildcards):
     if config['pet']['run'].isnumeric() and not isinstance(config['pet']['position'],int):
-        file=expand(bids(root=join(config['out_dir'], 'bids'), subject='{subject}', datatype=config['pet']['datatype'], session=config['pet']['session'], acq=config['pet']['acq'], run=config['pet']['run'], suffix=config['pet']['suffix']+config['pet']['ext']),subject=wildcards.subject)
+        file=expand(bids(root=join(config['out_dir'], 'bids'), subject='{subject}', datatype=config['pet']['datatype'], session=config['pet']['session'], task=config['pet']['task'], acq=config['pet']['acq'], run=config['pet']['run'], suffix=config['pet']['suffix']+config['pet']['ext']),subject=wildcards.subject)
     else:
-        files=glob(bids(root=join(config['out_dir'], 'bids'), subject=f'{wildcards.subject}', datatype=config['pet']['datatype'], session=config['pet']['session'], acq=config['pet']['acq'], run='*', suffix=config['pet']['suffix']+config['pet']['ext']))
+        files=glob(bids(root=join(config['out_dir'], 'bids'), subject=f'{wildcards.subject}', datatype=config['pet']['datatype'], session=config['pet']['session'], task=config['pet']['task'], acq=config['pet']['acq'], run='*', suffix=config['pet']['suffix']+config['pet']['ext']))
         files.sort(key=lambda f: int(re.sub('\D', '', f)),reverse=False)
         file=files[config['pet']['position']]
     print(file)

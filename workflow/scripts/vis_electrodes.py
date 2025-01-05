@@ -21,8 +21,8 @@ if debug:
 		def __init__(self, **kwargs):
 			self.__dict__.update(kwargs)
 	
-	isub="P162"
-	data_dir=r'/home/greydon/Documents/data/SEEG/derivatives'
+	isub="EMOP0443"
+	data_dir=r'/home/greydon/Documents/data/emory_seeg/derivatives'
 	
 	input=dotdict({'fcsv':f'{data_dir}/seeg_coordinates/' + f'sub-{isub}/sub-{isub}_space-native_SEEGA.fcsv',
 				'xfm_ras':f'{data_dir}/atlasreg/' + f'sub-{isub}/sub-{isub}_desc-affine_from-subject_to-MNI152NLin2009cSym_type-ras_xfm.txt'
@@ -122,8 +122,8 @@ for k,v in label_dict.items():
 # Create the figure
 fig, ax = plt.subplots()
 ax.axis("off")
-ax.legend(handles=legend_elements, loc='center')
-fig.savefig(temp2,dpi=300)
+ax.legend(handles=legend_elements, loc='center',fontsize="8")
+fig.savefig(temp2,dpi=400)
 plt.close()
 
 img_orig = cv2.imread(temp2)
