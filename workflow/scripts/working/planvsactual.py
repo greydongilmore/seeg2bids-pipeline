@@ -282,7 +282,7 @@ if debug:
 		def __init__(self, **kwargs):
 			self.__dict__.update(kwargs)
 	
-	isub='sub-EMOP0288'
+	isub='sub-EMOP0481'
 
 	data_dir=r'/home/greydon/Documents/data/emory_seeg/derivatives/slicer_scene'
 	
@@ -339,6 +339,9 @@ for ifile in [x for x in patient_files if not x.endswith('empty.csv')]:
 groupsPlanned, planned_all = determine_groups(np.array(file_data['planned']['label'].values))
 label_set=sorted(set(groupsPlanned), key=groupsPlanned.index)
 
+
+
+
 if 'actual' in list(file_data):
 	groupsActual, actual_all = determine_groups(np.array(file_data['actual']['label'].values))
 	label_set=sorted(set(groupsActual).intersection(groupsPlanned), key=groupsActual.index)
@@ -383,7 +386,7 @@ if shopping_list:
 	error_idx=[]
 	for _,row_elec in df_shopping_list.iterrows():
 		if any([x.lower()=='label' for x in list(row_elec.keys())]):
-			error_idx.append([i for i,x in enumerate(label_set) if x.lower() == row_elec['Label'].lower().strip()][0])
+			error_idx.append([i for i,x in enumerate(label_set) if x == row_elec["Label"].strip()][0])
 		else:
 			if [i for i,x in enumerate(label_set) if f"({x.lower()})" in row_elec['Target'].lower().strip()]:
 				error_idx.append([i for i,x in enumerate(label_set) if f"({x.lower()})" in row_elec['Target'].lower().strip()][0])
@@ -412,13 +415,13 @@ for igroup in label_set:
 	
 	if 'seega' in list(file_data):
 		seeg_idx=[i for i,x in enumerate(file_data['seega']['label'].values) if igroup in x]
-		if all(file_data['seega'].loc[seeg_idx]['description'].isnull()):
+		if all(file_data['seega'].loc[seeg_idx]['desc'].isnull()):
 			elec_data_temp = file_data['seega'].loc[seeg_idx,['x','y','z']].to_numpy().astype(float)
 			dist = np.mean(np.linalg.norm(elec_data_temp[:-1,:] - elec_data_temp[1:,:], axis=1))
 			idx_ielec,val_ielec = min(enumerate(list(chan_label_dic)), key=lambda x: abs(x[1]-dist))
 			elec_temp['electrodeType']=chan_label_dic[val_ielec]
 		else:
-			elec_temp['electrodeType']=file_data['seega'].loc[seeg_idx]['description'].mode()[0]
+			elec_temp['electrodeType']=file_data['seega'].loc[seeg_idx]['desc'].mode()[0]
 		elec_temp['numContacts']=file_data['seega'].loc[seeg_idx].shape[0]
 		
 # 		seeg_idx=[i for i,x in enumerate(file_data['seega']['label'].values) if x.startswith(igroup)]

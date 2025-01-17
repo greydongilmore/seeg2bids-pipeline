@@ -293,10 +293,13 @@ greedy_bin=r'/opt/greedy-1.3.0/bin/greedy'
 
 #%%
 
+ros_file_path=r'/media/greydon/WD_EXT/emory_ROSA'
+isubpath=ros_file_path+'/uploaded'
+
 
 ros_file_path=r'/home/greydon/Documents/data/emory_seeg/derivatives/slicer_scene'
 
-isubpath=ros_file_path+'/sub-EMOP0443'
+isubpath=ros_file_path+'/sub-EMOP0367'
 
 
 if glob.glob(os.path.join(ros_file_path,"sub-*")):
@@ -307,7 +310,7 @@ else:
 for isubpath in sorted_nicely(glob.glob(os.path.join(ros_file_path,key_word))):
 	isub=os.path.basename(isubpath)
 	ros_fname_list=glob.glob(os.path.join(ros_file_path, isub,"**",'*.ros'),recursive=True)
-	for ros_fname in ros_fname_list:
+	for ros_fname in sorted_nicely(ros_fname_list)[::-1]:
 		#parse ROS file
 		rosa_parsed=parseROSAfile(ros_fname)
 		
@@ -325,11 +328,11 @@ for isubpath in sorted_nicely(glob.glob(os.path.join(ros_file_path,key_word))):
 				if dicom_files:
 					out_dir=os.path.join(dicom_dir,idicom,'DICOMFiles')
 					if not os.path.exists(f'{out_dir}.zip'):
-						os.makedirs(out_dir, exist_ok=True)
-						folder=Path(out_dir)
-						
-						for ifile in dicom_files:
-							shutil.move(ifile, folder)
+						if not os.path.exists(out_dir):
+							os.makedirs(out_dir, exist_ok=True)
+							folder=Path(out_dir)
+							for ifile in dicom_files:
+								shutil.move(ifile, folder)
 						
 						if sys.platform == 'win32':
 							zip_cmd = ' '.join([f'{os.path.splitroot(out_dir)[0].lower()}&&',
@@ -343,41 +346,32 @@ for isubpath in sorted_nicely(glob.glob(os.path.join(ros_file_path,key_word))):
 												 f'"{out_dir}.zip"',
 												 '*'])
 						
-						print(f"Zipping {isub}: {idicom}")
+						print(f"Zipping {os.path.basename(os.path.dirname(dicom_dir))}: {idicom}")
 						run_command(zip_cmd)
 						shutil.rmtree(out_dir)
 					else:
 						print(f"EXISTS: {out_dir}.zip")
 		
-		nii_xfm=glob.glob(os.path.join(isubpath, f"{isub}_acq-ROSA_desc-rigid_*_xfm.tfm"))
 		
+		nii_xfm=glob.glob(os.path.join(isubpath, f"{isub}_acq-ROSA_desc-rigid_*_xfm.tfm"))
+		sub2t_xfm=None
 		if nii_xfm:
 			nii_xfm=nii_xfm[0]
-			nii_fname=glob.glob(os.path.join(isubpath, f"{isub}_ses-pre_acq-ROSA_*.nii.gz"))[0]
+			nii_fname=glob.glob(os.path.join(isubpath, f"{isub}_ses-pre_acq-ROSA_*.nii.gz"))
+			
+			sub2template= pd.read_table(nii_xfm,sep=",",header=2)
+			sub2t_xfm=np.array([float(x) for x in sub2template.iloc[0,0].split(':')[-1].strip().split(' ')])
+			sub2t_transform = np.eye(4)
+			sub2t_transform[0:3, 0:3] = sub2t_xfm[:9].reshape(3, 3)
+			sub2t_transform[0:3, 3] = sub2t_xfm[9:]
+			
+			lps2ras=np.diag([-1, -1, 1, 1])
+			ras2lps=np.diag([-1, -1, 1, 1])
+			sub2t_xfm=np.dot(ras2lps,np.dot(np.linalg.inv(sub2t_transform),lps2ras))
 		else:
-			img_vol=f'{os.path.sep}'.join([os.path.dirname(ros_fname)]+[x for x in rosa_parsed['volumes'][0]['VOLUME'].strip().split("\\") if x != ""])+".img"
-			if os.path.exists(img_vol):
-				nii_fname=f"{os.path.sep}".join([isubpath, '_'.join([os.path.basename(os.path.dirname(ros_fname)), os.path.basename(img_vol).replace('.img', '.nii.gz')])])
-				if not os.path.exists(nii_fname):
-					img_obj=nb.load(img_vol)
-					nb.save(img_obj, nii_fname)
+			nii_fname=glob.glob(f"{ros_file_path}/{isub}/*-contrast*_T1w.nii.gz")
 			
-			nii_xfm=os.path.join(isubpath, f"{isub}_desc-rigid_from-{os.path.splitext(os.path.basename(img_vol))[0]}_to-T1w_xfm.txt")
-			nii_xfm=r'/home/greydon/Documents/data/emory_seeg/derivatives/slicer_scene/sub-EMOP0443/sub-EMOP0443_desc-rigid_from-2021_to-2019_type-contrast_xfm.tfm'
-			fixed_img_path=glob.glob(os.path.join(isubpath,'*acq-contrast_T1w*'))
 			
-			rigid_cmd = ' '.join([
-				f'{greedy_bin} -d 3 -threads 4',
-				"-a -dof 6 -ia-image-centers",
-				"-m MI",
-				f'-i "{fixed_img_path[0]}" "{nii_fname}"',
-				f'-o "{nii_xfm}"',
-				"-n 100x50x0"
-			])
-			
-			run_command(rigid_cmd)
-			xfm_txt_to_tfm(nii_xfm)
-			nii_xfm=nii_xfm.replace(".txt",".tfm")
 		
 		rot2ras=rotation_matrix(np.deg2rad(0),np.deg2rad(0),np.deg2rad(180))
 		acpc_fname=glob.glob(os.path.join(ros_file_path, isub,'*acpc.fcsv'))
@@ -388,26 +382,15 @@ for isubpath in sorted_nicely(glob.glob(os.path.join(ros_file_path,key_word))):
 		out_fcsv=os.path.join(ros_file_path,isub,f'{isub}_planned.fcsv')
 		out_acpc_fcsv=os.path.join(ros_file_path,isub,f'{isub}_acpc.fcsv')
 		
-		sub2template= pd.read_table(nii_xfm,sep=",",header=2)
-		sub2t_xfm=np.array([float(x) for x in sub2template.iloc[0,0].split(':')[-1].strip().split(' ')])
-		sub2t_transform = np.eye(4)
-		sub2t_transform[0:3, 0:3] = sub2t_xfm[:9].reshape(3, 3)
-		sub2t_transform[0:3, 3] = sub2t_xfm[9:]
-		
 		if nii_fname:
-			lps2ras=np.diag([-1, -1, 1, 1])
-			ras2lps=np.diag([-1, -1, 1, 1])
-			
-			sub2t_xfm=np.dot(ras2lps,np.dot(np.linalg.inv(sub2t_transform),lps2ras))
 			
 			#centering transform
-			orig_nifti=nb.load(nii_fname)
-			orig_affine=orig_nifti.affine.copy()
-			center_coordinates=np.array([x/ 2 for x in orig_nifti.header["dim"][1:4]-1])
+			orig_nifti=nb.load(nii_fname[0])
+			orig_affine=orig_nifti.affine
+			center_coordinates=np.array([x/ 2 for x in orig_nifti.header["dim"][1:4]-1.0])
 			homogeneous_coord = np.concatenate((center_coordinates, np.array([1])), axis=0)
-			centering_transform_raw=np.c_[np.vstack([np.eye(3),np.zeros(3)]), np.round(np.dot(orig_affine,homogeneous_coord),3)]
+			centering_transform_raw=np.c_[np.r_[np.eye(3),np.zeros((1,3))], np.round(np.dot(orig_affine, homogeneous_coord),3)]
 			centering_transform=np.dot(ras2lps,np.dot(np.linalg.inv(centering_transform_raw),lps2ras))
-			t_out=rot2ras@rosa_parsed['volumes'][0]['TRdicomRdisplay']@centering_transform_raw
 			
 			Parameters = " ".join([str(x) for x in np.concatenate((centering_transform[0:3,0:3].reshape(9), centering_transform[0:3,3]))])
 			with open(out_tfm, 'w') as fid:
@@ -426,8 +409,9 @@ for isubpath in sorted_nicely(glob.glob(os.path.join(ros_file_path,key_word))):
 				tvecT = centering_transform_raw@vecT
 				tvecE = centering_transform_raw@vecE
 				
-				tvecT = sub2t_xfm@tvecT
-				tvecE = sub2t_xfm@tvecE
+				if sub2t_xfm is not None:
+					tvecT = sub2t_xfm@tvecT
+					tvecE = sub2t_xfm@tvecE
 				
 				coordsys='0'
 				

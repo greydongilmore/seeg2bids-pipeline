@@ -15,7 +15,7 @@ import numpy as np
 from matplotlib import gridspec
 
 
-matplotlib.use('Qt5Agg')
+#matplotlib.use('Qt5Agg')
 
 def svg2str(display_object, dpi):
 	"""Serialize a nilearn display object to string."""
