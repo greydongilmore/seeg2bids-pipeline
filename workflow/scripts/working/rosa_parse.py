@@ -293,13 +293,12 @@ greedy_bin=r'/opt/greedy-1.3.0/bin/greedy'
 
 #%%
 
-ros_file_path=r'/media/greydon/WD_EXT/emory_ROSA'
-isubpath=ros_file_path+'/uploaded'
+ros_file_path=r'E:\rosa'
+isubpath=os.path.sep.join([ros_file_path,'uploaded'])
 
 
 ros_file_path=r'/home/greydon/Documents/data/emory_seeg/derivatives/slicer_scene'
-
-isubpath=ros_file_path+'/sub-EMOP0367'
+isubpath=os.path.sep.join([ros_file_path,'sub-EMOP0367'])
 
 
 if glob.glob(os.path.join(ros_file_path,"sub-*")):
